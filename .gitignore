@@ -3,3 +3,5 @@
 /.actionScriptProperties
 /.flexProperties
 /.project
+/build.properties
+/fb4.config.xml
