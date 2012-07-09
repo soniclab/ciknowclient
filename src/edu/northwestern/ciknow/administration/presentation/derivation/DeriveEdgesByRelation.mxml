@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%" 
+					   title="Derive Edges By Relation">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.components.EdgeAttributeFilter;
+			import edu.northwestern.ciknow.common.components.NodeAttributeFilter;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			
+			[Bindable] 
+			private var deriveEdgesByRelationOperators:ArrayCollection = new ArrayCollection(
+				[	{name:"addition", label:"Addition"},
+					{name:"subtraction", label:"Subtraction"},
+					{name:"division", label:"Division"},
+					{name:"multiplication", label:"Multiplication"},
+					{name:"multiplication-e", label:"Element-wise Multiplication"}]);
+			
+			private var nodeFilterData_a_from:Object = new Object();
+			private var nodeFilterConditions_a_from:ArrayCollection = new ArrayCollection();
+			private var nodeFilterData_a_to:Object = new Object();
+			private var nodeFilterConditions_a_to:ArrayCollection = new ArrayCollection();
+			
+			private var nodeFilterData_b_from:Object = new Object();
+			private var nodeFilterConditions_b_from:ArrayCollection = new ArrayCollection();
+			private var nodeFilterData_b_to:Object = new Object();
+			private var nodeFilterConditions_b_to:ArrayCollection = new ArrayCollection();
+			
+			private var edgeFilterData_a:Object = new Object();
+			private var edgeFilterConditions_a:ArrayCollection = new ArrayCollection();
+			private var edgeFilterData_b:Object = new Object();
+			private var edgeFilterConditions_b:ArrayCollection = new ArrayCollection();
+
+			public var selectItemMessage:String = "Please select edge types.";
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveEdgesByRelation);
+				super.init();
+				this.derivationType = Constants.DERIVE_EDGE_BY_RELATION;
+			}									
+			
+			
+			public override function derive():void{
+				var edgeA:Object = relationA.selectedItem;
+				var edgeB:Object = relationB.selectedItem;
+				if (edgeA == null || edgeB == null){
+					Alert.show(selectItemMessage);
+					return;
+				}
+				
+				var event:EdgeEvent = new EdgeEvent(EdgeEvent.DERIVE_EDGES_BY_RELATION);
+				event.data = new Object();
+				event.data.edgeTypeA = edgeA.type;
+				event.data.directionA = directionA.selected?"-1":"1";
+				event.data.nodeFilterConditions_a_from = gu.getFilters(nodeFilterConditions_a_from);
+				event.data.nodeCombiner_a_from = nodeFilterData_a_from.hasOwnProperty("combiner")?String(nodeFilterData_a_from.combiner):"or";
+				event.data.nodeFilterConditions_a_to = gu.getFilters(nodeFilterConditions_a_to);
+				event.data.nodeCombiner_a_to = nodeFilterData_a_to.hasOwnProperty("combiner")?String(nodeFilterData_a_to.combiner):"or";
+				event.data.edgeFilterConditions_a = gu.getFilters(edgeFilterConditions_a);
+				event.data.edgeCombiner_a = edgeFilterData_a.hasOwnProperty("combiner")?String(edgeFilterData_a.combiner):"or";
+				
+				var operatorName:String = String(deriveEdgesByRelationOperatorBox.selectedItem.name);
+				event.data.operator = operatorName;
+				if (operatorName == "multiplication") event.data.keepDiagonal = keepDiagonalBox.selected?"1":"0";
+				
+				event.data.edgeTypeB = edgeB.type;				
+				event.data.directionB = directionB.selected?"-1":"1";
+				event.data.nodeFilterConditions_b_from = gu.getFilters(nodeFilterConditions_b_from);
+				event.data.nodeCombiner_b_from = nodeFilterData_b_from.hasOwnProperty("combiner")?String(nodeFilterData_b_from.combiner):"or";
+				event.data.nodeFilterConditions_b_to = gu.getFilters(nodeFilterConditions_b_to);
+				event.data.nodeCombiner_b_to = nodeFilterData_b_to.hasOwnProperty("combiner")?String(nodeFilterData_b_to.combiner):"or";
+				event.data.edgeFilterConditions_b = gu.getFilters(edgeFilterConditions_b);
+				event.data.edgeCombiner_b = edgeFilterData_b.hasOwnProperty("combiner")?String(edgeFilterData_b.combiner):"or";
+				
+				event.data.creatorId = sm.loginNode.nodeId.toString();
+				
+				event.data.job = job;
+				
+				dispatcher(event);
+			}
+			
+			
+			private function onOperatorChange():void{
+				if (deriveEdgesByRelationOperatorBox.selectedItem.name == "multiplication"){
+					keepDiagonalBox.visible = true;
+				} else keepDiagonalBox.visible = false;
+			}
+			
+			private function configNodeFilter(type:String, side:String):void{				
+				var nodeAttributeFilter:NodeAttributeFilter = new NodeAttributeFilter();
+				if (type =="a"){
+					if (side == "from"){
+						nodeAttributeFilter.data = nodeFilterData_a_from;
+						nodeFilterData_a_from.filterConditions = nodeFilterConditions_a_from;
+					} else {
+						nodeAttributeFilter.data = nodeFilterData_a_to;
+						nodeFilterData_a_to.filterConditions = nodeFilterConditions_a_to;
+					}
+				} else {
+					if (side == "from"){
+						nodeAttributeFilter.data = nodeFilterData_b_from;
+						nodeFilterData_b_from.filterConditions = nodeFilterConditions_b_from;
+					} else {
+						nodeAttributeFilter.data = nodeFilterData_b_to;
+						nodeFilterData_b_to.filterConditions = nodeFilterConditions_b_to;
+					}
+				}
+				context.viewManager.addViewRoot(nodeAttributeFilter);
+				gu.showPopup(nodeAttributeFilter, moduleFactory);
+			}
+			
+			private function configEdgeFilter(type:String):void{
+				var edgeAttributeFilter:EdgeAttributeFilter = new EdgeAttributeFilter();
+				if (type =="a"){
+					edgeAttributeFilter.data = edgeFilterData_a;
+					edgeFilterData_a.filterConditions = edgeFilterConditions_a;
+				} else {
+					edgeAttributeFilter.data = edgeFilterData_b;
+					edgeFilterData_b.filterConditions = edgeFilterConditions_b;
+				}
+				context.viewManager.addViewRoot(edgeAttributeFilter);
+				gu.showPopup(edgeAttributeFilter, moduleFactory);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label text="{instruction}"/>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="relationAItem" label="Relation A">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="relationA" dataProvider="{sm.edgeTypeDescriptions}" labelField="label" maxWidth="500"/>	
+				<s:Button id="fromNodeFilterA" label="FromNodeFilter" click="configNodeFilter('a', 'from')"/>
+				<s:Button id="toNodeFilterA" label="ToNodeFilter" click="configNodeFilter('a', 'to')"/>
+				<s:Button id="edgeFilterA" label="EdgeFilter" click="configEdgeFilter('a')"/>
+				<s:CheckBox id="directionA" label="Transpose"/>
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="operatorItem" label="Operator">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="deriveEdgesByRelationOperatorBox" 
+								dataProvider="{deriveEdgesByRelationOperators}" 
+								labelField="label"
+								selectedIndex="3"
+								change="onOperatorChange()"/>
+				<s:CheckBox id="keepDiagonalBox" label="Keep Diagonal Values" visible="true" selected="true"/>
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="relationBItem" label="Relation B">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="relationB" dataProvider="{sm.edgeTypeDescriptions}" labelField="label" maxWidth="500"/>
+				<s:Button id="fromNodeFilterB" label="FromNodeFilter" click="configNodeFilter('b', 'from')"/>
+				<s:Button id="toNodeFilterB" label="ToNodeFilter" click="configNodeFilter('b', 'to')"/>
+				<s:Button id="edgeFilterB" label="EdgeFilter" click="configEdgeFilter('b')"/>
+				<s:CheckBox id="directionB" label="Transpose"/>
+			</s:HGroup>
+		</s:FormItem>					
+	</s:Form>
+	
+</derivation:DeriveBase>

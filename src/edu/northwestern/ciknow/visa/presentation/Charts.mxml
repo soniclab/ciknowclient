@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.QuestionEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			import edu.northwestern.ciknow.visa.presentation.charts.ChoiceChart;
+			import edu.northwestern.ciknow.visa.presentation.charts.ContinousChart;
+			import edu.northwestern.ciknow.visa.presentation.charts.RatingChart;
+			
+			import mx.charts.series.ColumnSeries;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.graphics.ImageSnapshot;
+			import mx.logging.ILogger;
+			
+			private static const logger:ILogger = LogUtil.getLog(Charts);
+			
+			[Bindable] private var chartableQuestions:ArrayCollection = new ArrayCollection();
+			[Bindable] private var textFieldLabels:ArrayCollection = new ArrayCollection();
+			private var chartingQuestion:QuestionDTO = null;
+			private var chartingData:Object = null;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+
+			[Inject]
+			public var gu:GeneralUtil;
+
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+
+			public var noImageMessage:String = "There is no image for download.";
+			
+			[Init]
+			public function init():void{
+				logger.info("init");
+				chartableQuestions.removeAll();
+				for each (var question:QuestionDTO in sm.questions){
+					if (!nu.isAdmin(sm.loginNode) && qu.isHidden(question)) continue;
+					if (question.type == Constants.QUESTION_TYPE_CHOICE 
+						|| question.type == Constants.QUESTION_TYPE_RATING
+						|| question.type == Constants.QUESTION_TYPE_CONTINUOUS
+						|| question.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE
+						|| question.type == Constants.QUESTION_TYPE_MULTIPLE_RATING){
+						chartableQuestions.addItem(question);
+					}
+				}
+				questionsBox.selectedItem = null;
+			}
+			
+			private function selectQuestion():void{
+				chartingQuestion = questionsBox.selectedItem as QuestionDTO;
+				if (chartingQuestion == null) {
+					chartBox.removeAllElements();
+					return;
+				}
+				
+				var e:QuestionEvent = new QuestionEvent(QuestionEvent.GET_CHART_DATA);
+				e.data = new Object();
+				e.data.questionId = chartingQuestion.questionId.toString();
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotChartData")]
+			public function chartDataHandler(e:QuestionEvent):void{	
+				chartingData = e.data;			
+				chartBox.removeAllElements();
+				
+				if (chartingQuestion.type == Constants.QUESTION_TYPE_CHOICE){
+					showChoiceChart(chartingData);
+					gu.hide(textFieldsBox);
+				} else if (chartingQuestion.type == Constants.QUESTION_TYPE_RATING){
+					showRatingChart(chartingData);	
+					gu.hide(textFieldsBox);				
+				} else if (chartingQuestion.type == Constants.QUESTION_TYPE_CONTINUOUS){
+					showContinousChart(chartingData);
+					gu.hide(textFieldsBox);			
+				} else if (chartingQuestion.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE
+					|| chartingQuestion.type == Constants.QUESTION_TYPE_MULTIPLE_RATING){
+					textFieldLabels.removeAll();
+					var list:ArrayCollection = ArrayCollection(chartingData.list);
+					for each (var o:Object in list){
+						textFieldLabels.addItem(String(o.textFieldLabel));
+					}
+					textFieldsBox.selectedItem = null;
+					gu.show(textFieldsBox);
+				}
+			}
+			
+			private function showChoiceChart(data:Object):void{
+				var choiceChart:ChoiceChart = new ChoiceChart();
+				choiceChart.answers = ArrayCollection(data.list);
+				chartBox.addElement(choiceChart);				
+			}
+			
+			private function showRatingChart(data:Object):void{
+				var ratingChart:RatingChart = new RatingChart();
+				ratingChart.answers = ArrayCollection(data.list);
+				chartBox.addElement(ratingChart);
+				
+				var series:Array = new Array();					
+				var scaleLabels:ArrayCollection = ArrayCollection(data.scaleLabels);
+				for each (var scaleLabel:String in scaleLabels){
+					var s:ColumnSeries = new ColumnSeries();
+					s.xField = "fieldLabel";
+					s.yField = scaleLabel;		
+					s.displayName = scaleLabel;
+					series.push(s);	
+				}
+				ratingChart.chart.series = series;				
+			}			
+			
+			private function showContinousChart(data:Object):void{
+				var continousChart:ContinousChart = new ContinousChart();
+				continousChart.answers = ArrayCollection(data.list);
+				chartBox.addElement(continousChart);	
+			}
+			
+			private function selectTextField():void{
+				chartBox.removeAllElements();
+				var textFieldLabel:String = String(textFieldsBox.selectedItem);
+				for each (var o: Object in ArrayCollection(chartingData.list)){
+					if (textFieldLabel == String(o.textFieldLabel)){
+						if (chartingQuestion.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE){
+							showChoiceChart(o);
+						} else if (chartingQuestion.type == Constants.QUESTION_TYPE_MULTIPLE_RATING){
+							showRatingChart(o);
+						}
+					}
+				}
+			}
+			
+			private function prepareImage():void{
+				if (chartBox.numChildren == 0){
+					Alert.show(noImageMessage);
+					return;
+				}
+				
+				var question:QuestionDTO = QuestionDTO(questionsBox.selectedItem);				
+				var filename:String = question.label;
+				if (textFieldsBox.visible && textFieldsBox.selectedItem != null){
+					filename += ("-+-" + textFieldsBox.selectedItem); 
+				}
+				filename += ".png";
+				if (gu.hasInvalidChar(filename)){
+					filename = "ciknow.chart.png";
+				}
+				
+				var snapshot:ImageSnapshot = ImageSnapshot.captureImage(chartBox, 0);
+				var imageData:String = ImageSnapshot.encodeImageAsBase64(snapshot);
+				
+				var params:URLVariables = new URLVariables();
+				params.action = "getImage";
+				params.imageData = imageData;
+				params.filename = filename;				
+				iu.download(params, filename);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:HGroup verticalAlign="baseline">
+		<s:DropDownList id="questionsBox" 
+						prompt="Please select a chartable question"
+						dataProvider="{chartableQuestions}" 
+					 	labelField="label" 
+					 	change="selectQuestion()" 
+						width="400" styleName="navigation">
+			<s:layout>
+				<s:VerticalLayout gap="0" horizontalAlign="contentJustify" requestedMaxRowCount="20"/>
+			</s:layout>
+		</s:DropDownList>
+		<s:DropDownList id="textFieldsBox" styleName="renderer"
+					 	dataProvider="{textFieldLabels}"
+					 	change="selectTextField()" 
+						visible="false" 
+						includeInLayout="false" 
+						width="200">
+			<s:layout>
+				<s:VerticalLayout gap="0" horizontalAlign="contentJustify" requestedMaxRowCount="20"/>
+			</s:layout>
+		</s:DropDownList>
+		<s:Button id="downloadBtn" label="Download Chart Image" click="prepareImage()"/>	
+	</s:HGroup>
+	<s:Group id="chartBox" width="100%" height="100%"/>
+</s:VGroup>

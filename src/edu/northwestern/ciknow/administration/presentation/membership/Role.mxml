@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.RoleDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.RoleEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.common.util.RoleUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static const logger:ILogger = LogUtil.getLog(Role);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var generalUtil:GeneralUtil;
+			
+			[Inject]
+			public var ru:RoleUtil;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			[Bindable] private var currentRoleNodes:ArrayCollection = new ArrayCollection();
+			private var currentRoleNodeIdSet:Object = new Object(); // distinct nodeIds
+			private var roleMap:Object = new Object(); // role --> list of nodes
+			
+			public var selectRoleMessage:String = "Please select a role first.";
+			public var deleteRoleMessage:String = "Are you sure to delete selected role?";
+			public var systemRoleMessage:String = "This is a system role which cannot be deleted.";
+			[Bindable]public var currentRoleNodesColumnPrefix:String = "Nodes In Selected Role:";
+			
+			[Init]
+			public function init():void{
+				logger.info("init");
+				var role:RoleDTO = ru.getRoleByName(Constants.ROLE_USER);
+				availableRoleBox.selectedItem = role;
+				selectAvailableRole();
+			}	
+			
+			private function getNodeIdSet(nodes:ArrayCollection):Object{
+				var nodeIdSet:Object = new Object();
+				for each (var node:Object in nodes){
+					var nodeId:String = String(node["node_id"]);
+					nodeIdSet[nodeId] = "1";
+				}
+				return nodeIdSet;
+			}
+			
+			/**************************** GROUP SELECTION *********************************/
+			private function selectRole(useCache:Boolean=true):void{
+				var role:RoleDTO = roleDg.selectedItem as RoleDTO;
+				if (role == null) {
+					
+				} else {															
+					var roleId:String = role.roleId.toString();
+					if (useCache && roleMap.hasOwnProperty(roleId)){
+						currentRoleNodes = ArrayCollection(roleMap[roleId]);
+						currentRoleNodeIdSet = getNodeIdSet(currentRoleNodes);
+					} else {
+						var e:RoleEvent = new RoleEvent(RoleEvent.GET_PLAIN_NODES_BY_ROLE_ID);
+						e.data.roleId = roleId;
+						dispatcher(e);
+					}
+				}
+			}
+			
+			private function selectAvailableRole(useCache:Boolean=true):void{				
+				var role:RoleDTO = RoleDTO(availableRoleBox.selectedItem);
+				if (role == null) {
+					
+				} else {										
+					var roleId:String = role.roleId.toString();
+					if (useCache && roleMap.hasOwnProperty(roleId)){
+						availableNodeDg.dataProvider = ArrayCollection(roleMap[roleId]);
+					} else {
+						var e:RoleEvent = new RoleEvent(RoleEvent.GET_PLAIN_NODES_BY_ROLE_ID);
+						e.data.roleId = roleId;
+						dispatcher(e);
+					}
+				}
+			}
+			
+			[MessageHandler(selector="GOT_PLAIN_NODES_BY_ROLE_ID")]
+			public function roleNodesHandler(event:RoleEvent):void{
+				var nodes:ArrayCollection = ArrayCollection(event.data.nodes);				
+				var roleId:String = String(event.data.roleId);
+				roleMap[roleId] = nodes;
+				if (roleDg.selectedItem != null && String(roleDg.selectedItem.roleId) == roleId){
+					currentRoleNodes = nodes;
+					currentRoleNodeIdSet = getNodeIdSet(currentRoleNodes);
+				}
+				
+				if (availableRoleBox.selectedItem != null && String(availableRoleBox.selectedItem.roleId) == roleId){
+					availableNodeDg.dataProvider = nodes;
+				}
+			}
+			
+			/******************************* NODES SELECTION ****************************/
+			private function addNodes():void{
+				var selectedNodes:Vector.<Object> = availableNodeDg.selectedItems;
+				if (selectedNodes == null || selectedNodes.length == 0) return;
+				var currentRole:RoleDTO = RoleDTO(roleDg.selectedItem);
+				if (currentRole == null) return;
+				
+				var newNodeIds:ArrayCollection = new ArrayCollection();
+				for each (var node:Object in selectedNodes){
+					var nodeId:String = String(node["node_id"]);
+					if (currentRoleNodeIdSet.hasOwnProperty(nodeId)) continue;
+					newNodeIds.addItem(nodeId);
+					currentRoleNodes.addItem(node);
+					currentRoleNodeIdSet[nodeId] = "1";
+				} 	
+				if (newNodeIds.length == 0) return;
+				
+				var e:RoleEvent = new RoleEvent(RoleEvent.ADD_NODE_TO_ROLE);
+				e.data = new Object();
+				e.data.roleId = currentRole.roleId.toString();
+				e.data.nodeIds = newNodeIds;
+				dispatcher(e);		
+			}
+			
+			private function removeNodes():void{
+				var deleteNodes:Vector.<Object> = nodeDg.selectedItems;
+				if (deleteNodes == null || deleteNodes.length == 0) return;
+				var currentRole:RoleDTO = RoleDTO(roleDg.selectedItem);
+				if (currentRole == null) return;
+				
+				var deleteNodeIds:ArrayCollection = new ArrayCollection();
+				for each (var deleteNode:Object in deleteNodes){
+					var nodeId:String = String(deleteNode["node_id"]);
+					deleteNodeIds.addItem(nodeId);
+					currentRoleNodes.removeItemAt(currentRoleNodes.getItemIndex(deleteNode));
+					delete currentRoleNodeIdSet[nodeId];
+				}	
+				if (deleteNodeIds.length == 0) return;
+				
+				var e:RoleEvent = new RoleEvent(RoleEvent.REMOVE_NODE_FROM_ROLE);
+				e.data = new Object();
+				e.data.roleId = currentRole.roleId.toString();
+				e.data.nodeIds = deleteNodeIds;
+				dispatcher(e);				
+			}		
+			
+			/********************************** CRUD **********************/			
+			private function createRole():void{
+				var p:RoleCreatePopup = new RoleCreatePopup();
+				context.viewManager.addViewRoot(p);
+				generalUtil.showPopup(p, moduleFactory);
+			}
+			
+			[MessageHandler(selector="createRoleDone")]
+			public function roleCreated(e:RoleEvent):void{
+				roleDg.selectedItem = RoleDTO(e.data);
+				selectRole();
+				
+				roleDg.validateNow();
+				roleDg.ensureCellIsVisible(roleDg.selectedIndex);
+			}
+			
+			private function updateRole():void{
+				var role:RoleDTO = roleDg.selectedItem as RoleDTO;
+				if (role == null) {
+					Alert.show(selectRoleMessage);
+					return;
+				}
+				
+				if (ru.isRoleNameFreezed(role.name)){
+					Alert.show(systemRoleMessage);
+					return;
+				}
+				
+				var p:RoleUpdatePopup = new RoleUpdatePopup();
+				p.role = role;
+				context.viewManager.addViewRoot(p);
+				generalUtil.showPopup(p, moduleFactory);
+			}
+			
+			private function deleteRole():void{
+				var role:RoleDTO = roleDg.selectedItem as RoleDTO;
+				if (role == null) {
+					Alert.show(selectRoleMessage);
+					return;
+				}
+				
+				if (ru.isRoleNameFreezed(role.name)){
+					Alert.show(systemRoleMessage);
+					return;
+				}
+				
+				Alert.show(deleteRoleMessage, "", Alert.YES|Alert.NO, this, deleteRoleHandler);				
+			}
+			
+			private function deleteRoleHandler(event:CloseEvent):void{
+				if (event.detail == Alert.NO) return;				
+				var role:RoleDTO = roleDg.selectedItem as RoleDTO;				
+				var e:RoleEvent = new RoleEvent(RoleEvent.DELETE_ROLE);
+				e.data = role;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="deleteRoleDone")]
+			public function roleDeleted(e:RoleEvent):void{
+				//roleDg.selectedItem = null;	// don't do this, it cause error!
+				generalUtil.hide(hg);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:DataGrid id="roleDg" 
+				selectionChange="selectRole()" 
+				dataProvider="{sm.roles}" 
+				editable="false" 
+				width="300" height="100%">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="roleColumn" headerText="Roles" dataField="name" showDataTips="true" dataTipField="name"/>
+			</s:ArrayList>			
+		</s:columns>
+	</s:DataGrid>
+	
+	<s:HGroup id="hg" 
+			  visible="{roleDg.selectedItem != null}" 
+			  includeInLayout="{roleDg.selectedItem != null}"
+			  height="100%" width="100%">
+		<s:DataGrid id="nodeDg" 
+					dataProvider="{currentRoleNodes}" 
+					selectionMode="multipleRows" 
+					doubleClickEnabled="true" 
+					doubleClick="removeNodes()" 
+					height="100%" width="100%">
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn headerText="{currentRoleNodesColumnPrefix} {currentRoleNodes.length}" dataField="label"/>	
+				</s:ArrayList>
+			</s:columns>
+		</s:DataGrid>
+		
+		<s:VGroup height="100%" verticalAlign="middle">
+			<s:Button label="&lt;" click="addNodes()" width="50"/>
+			<s:Button label="&gt;" click="removeNodes()" width="50"/>		
+		</s:VGroup>
+		
+		<s:VGroup height="100%" width="100%">
+			<s:DropDownList id="availableRoleBox" 
+							dataProvider="{sm.roles}"
+							labelField="name" 
+							change="selectAvailableRole()" 
+							width="100%"/>
+			<s:DataGrid id="availableNodeDg" 
+						selectionMode="multipleRows" 
+						doubleClickEnabled="true" 
+						doubleClick="addNodes()" 
+						height="100%" width="100%">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn id="availableNodesColumn" headerText="Available Nodes" dataField="label"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>					
+		</s:VGroup>
+	</s:HGroup>
+
+	<s:controlBarContent>
+		<s:Button id="newBtn" label="New" click="createRole()"/> 
+		<s:Button id="changeRoleNameBtn" label="Change Role Name" click="updateRole()"/> 				
+		<s:Button id="deleteBtn" label="Delete" click="deleteRole()"/>
+	</s:controlBarContent>
+</s:Panel>

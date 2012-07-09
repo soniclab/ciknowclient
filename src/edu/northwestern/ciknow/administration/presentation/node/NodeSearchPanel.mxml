@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%"
+		 styleName="innerPanel"
+		 xmlns:parsley="http://www.spicefactory.org/parsley" 
+		 xmlns:components="org.flashcommander.components.*">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(NodeSearchPanel);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;			
+			
+			[Bindable] private var nodeTypes:ArrayCollection = new ArrayCollection();
+			[Bindable] private var pageSizes:ArrayCollection = new ArrayCollection([250, 500, 1000, 2500]);
+			
+			[Inject]
+			[Bindable]
+			public var pm:NodePM;
+			
+			[Inject]
+			[Bindable]
+			public var sm:SharedModel;
+			
+			[Init]
+			public function init():void{
+				nodeTypes.addItem(pm.NULL);
+				for each (var ntd:Object in sm.nodeTypeDescriptions){
+					nodeTypes.addItem(ntd);
+				}
+			}
+
+			// forward the request to NodeListPanel for further processing
+			private function search():void{
+				logger.info("Start new search ----------------------");
+				pm.ntd = nodeTypeFilter.selectedItem;				
+				pm.label = StringUtil.trim(labelFinder.text);				
+				//pm.username = StringUtil.trim(nameFinder.text);
+				pm.page = 0;
+				pm.pageSize = int(pageSizeBox.selectedItem);
+				pm.includeCount = true;
+				
+				pm.search();
+			}
+		]]>
+	</fx:Script>
+	<s:Form width="100%" height="100%">
+		<s:layout>
+			<s:FormLayout gap="-15"/>
+		</s:layout>
+		
+		<s:FormItem id="nodeTypeItem" label="Node Type:">
+			<s:DropDownList id="nodeTypeFilter" 
+						dataProvider="{nodeTypes}" 
+						selectedItem="{pm.ntd}" 
+						labelField="label" 
+						change="search()" 
+						width="100%"/>
+		</s:FormItem>
+		
+		<s:FormItem id="labelItem" label="Label:">
+			<s:TextInput id="labelFinder" enter="search()"
+						 width="100%"/>
+		</s:FormItem>
+<!--		<mx:FormItem label="Name:">
+			<components:AutoComplete id="nameFinder" 
+									 prefixOnly="false" 
+									 requireSelection="true"
+									 dataProvider="{pm.allNodeUsernames}" 
+									 enter="search()"
+									 width="150"/>
+		</mx:FormItem>-->
+		<s:FormItem id="pageSizeItem" label="Page Size:">
+			<s:ComboBox id="pageSizeBox" 
+						dataProvider="{pageSizes}" 
+						selectedItem="{pm.pageSize}"
+						change="search()" 
+						width="100%"/>
+		</s:FormItem>
+	</s:Form>
+
+	<s:controlBarContent>
+		<s:HGroup horizontalAlign="right" width="100%">
+			<s:Button id="searchBtn" label="Search" click="search()"/>
+		</s:HGroup>
+	</s:controlBarContent>
+</s:Panel>

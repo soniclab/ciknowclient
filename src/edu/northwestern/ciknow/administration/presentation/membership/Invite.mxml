@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.GroupDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GroupEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.GroupUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static const logger:ILogger = LogUtil.getLog(Invite);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GroupUtil;
+			
+			[Inject]
+			public var generalUtil:GeneralUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			[Bindable] private var allGroups:ArrayCollection = new ArrayCollection();
+			[Bindable] private var selectedContacts:ArrayCollection = new ArrayCollection();
+			[Bindable] private var availableContacts:ArrayCollection = new ArrayCollection();
+			private var selectedContactIdSet:Object = new Object(); // distinct nodeIds
+			private var groupMap:Object = new Object();
+			
+			[Bindable]public var selectedContactsPrefix:String = "Selected Contacts";
+			[Bindable]public var availableContactsPrefix:String = "Available Contacts";
+			public var selectRecipientMessage:String = "Please select recipients first";
+			
+			[Init]
+			public function init():void{
+				logger.info("init");
+				initAllGroups();
+				
+				var group:GroupDTO = gu.getGroupByName(Constants.GROUP_USER);
+				availableGroupBox.selectedItem = group;
+				selectAvailableGroup();
+			}	
+			
+			private function initAllGroups():void{
+				allGroups.removeAll();
+				for each (var g:GroupDTO in sm.groups){
+					if (g.isPrivate()) continue;
+					allGroups.addItem(g);
+				}
+				allGroups.sort = generalUtil.getSort("name");
+				allGroups.refresh();		
+			}
+			
+			/**************************** GROUP SELECTION *********************************/
+			private function selectAvailableGroup(useCache:Boolean=true):void{				
+				var group:GroupDTO = GroupDTO(availableGroupBox.selectedItem);
+				if (group == null) {
+					
+				} else {										
+					var groupId:String = group.groupId.toString();
+					if (useCache && groupMap.hasOwnProperty(groupId)){
+						availableContacts = ArrayCollection(groupMap[groupId]);
+					} else {
+						var e:GroupEvent = new GroupEvent(GroupEvent.GET_PLAIN_NODES_BY_GROUP_ID);
+						e.data.groupId = groupId;
+						dispatcher(e);
+					}
+				}
+			}
+			
+			[MessageHandler(selector="GOT_PLAIN_NODES_BY_GROUP_ID")]
+			public function groupNodesHandler(event:GroupEvent):void{
+				var nodes:ArrayCollection = ArrayCollection(event.data.nodes);				
+				var groupId:String = String(event.data.groupId);
+				groupMap[groupId] = nodes;
+				if (availableGroupBox.selectedItem != null && String(availableGroupBox.selectedItem.groupId) == groupId){
+					availableContacts = nodes;
+				}
+			}
+			
+			/******************************* NODES SELECTION ****************************/
+			private function addNodes():void{
+				var selectedItems:Vector.<Object> = availableContactDg.selectedItems;
+				for each (var node:Object in selectedItems){
+					var nodeId:String = String(node["node_id"]);
+					if (selectedContactIdSet.hasOwnProperty(nodeId)) continue;
+					selectedContacts.addItem(node);
+					selectedContactIdSet[nodeId] = "1";
+				} 			
+			}
+			
+			private function removeNodes():void{
+				var selectedItems:Vector.<Object> = selectedContactDg.selectedItems;
+				for each (var node:Object in selectedItems){
+					var nodeId:String = String(node["node_id"]);
+					selectedContacts.removeItemAt(selectedContacts.getItemIndex(node));
+					delete selectedContactIdSet[nodeId];
+				}					
+			}		
+					
+			private function invite():void{
+				if (selectedContacts.length == 0){
+					Alert.show(selectRecipientMessage);
+					return;
+				}
+				
+				var p:InvitePopup = new InvitePopup();
+				var nodeIds:ArrayCollection = new ArrayCollection();
+				for each (var node:Object in selectedContacts){
+					var nodeId:String = String(node["node_id"]);
+					nodeIds.addItem(nodeId);
+				}
+				p.nodeIds = nodeIds;	
+				context.viewManager.addViewRoot(p);
+				generalUtil.showPopup(p, moduleFactory);
+			}
+			
+			private function upload():void{
+				iu.uploadInvitationTemplate();
+			}
+			
+			private function download():void{
+				iu.downloadInvitationTemplate();
+			}
+		]]>
+	</fx:Script>
+
+	<s:DataGrid id="selectedContactDg" 
+				dataProvider="{selectedContacts}" 
+				selectionMode="multipleRows" 
+				doubleClickEnabled="true" 
+				doubleClick="removeNodes()" 
+				height="100%" width="100%">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn headerText="{selectedContactsPrefix} ({selectedContacts.length})" dataField="label"/>	
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	
+	<s:VGroup height="100%" verticalAlign="middle">
+		<s:Button label="&lt;" click="addNodes()" width="50"/>
+		<s:Button label="&gt;" click="removeNodes()" width="50"/>		
+	</s:VGroup>
+	
+	<s:VGroup height="100%" width="100%">
+		<s:DropDownList id="availableGroupBox" 
+						dataProvider="{allGroups}"
+						labelField="name" 
+						change="selectAvailableGroup()" 
+						width="100%"/>
+		<s:DataGrid id="availableContactDg" 
+					dataProvider="{availableContacts}" 
+					selectionMode="multipleRows" 
+					doubleClickEnabled="true" 
+					doubleClick="addNodes()" 
+					height="100%" width="100%">
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn headerText="{availableContactsPrefix} ({availableContacts.length})" dataField="label"/>
+				</s:ArrayList>
+			</s:columns>
+		</s:DataGrid>					
+	</s:VGroup>
+
+	<s:controlBarContent>
+		<s:Button id="continueBtn" label="Continue" click="invite()"/>
+		<s:Button id="downloadBtn" label="Download Template" click="download()"/>
+		<s:Button id="uploadBtn" label="Upload Template" click="upload()"/>
+	</s:controlBarContent>	
+</s:Panel>

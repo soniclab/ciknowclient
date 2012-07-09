@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 creationComplete="init()"
+		 styleName="headlessPanel" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley" 
+		 xmlns:components="org.flashcommander.components.*">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[			
+			import edu.northwestern.ciknow.common.domain.FieldDTO;
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.domain.TextFieldDTO;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(PullRecommender);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Bindable][Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			
+			[Bindable] private var _nodeId:Number = -1;	
+			[Bindable] private var editUser:Boolean = false;	
+			[Bindable] private var numRecsList:IList = new ArrayCollection([50, 100, 250, 500, 1000]);
+			//[Bindable] private var operators:Array = ["and", "or"];	
+			
+			[Bindable] private var selectData:ArrayCollection = new ArrayCollection(["NodeType", "Question"]);
+			[Bindable] private var choiceQuestions:ArrayCollection = new ArrayCollection();
+			[Bindable] private var labels:ArrayCollection = new ArrayCollection();
+			private var allNodeLabels:ArrayCollection = new ArrayCollection();
+			private var allFieldLabels:ArrayCollection = new ArrayCollection();			
+			
+			[Bindable] private var recTypes:ArrayCollection;;
+			[Bindable] private var recs:ArrayCollection = new ArrayCollection();			
+
+			public var noRecommendationMessage:String = "There is no recommendation available.";
+			public var selectRecommendationMessage:String = "Please select recommendation(s).";
+			public var showLabel:String = "Show";
+			public var hideLabel:String = "Hide";
+			
+			private function init():void{
+				logger.debug("initializing...");
+				
+				if (sm.mainPageHeight > 0) {
+					scroller.height = sm.mainPageHeight - 72;
+					scroller.width = sm.mainPageWidth;	
+				}
+				
+				// allow admin to edit nodeId
+				_nodeId = sm.loginNode.nodeId;
+				editUser = nu.isAdmin(sm.loginNode);
+				
+				// get node labels
+				if(sm.nodeMap==null){
+					var e:NodeEvent = new NodeEvent(NodeEvent.GET_PLAIN_NODES);
+					dispatcher(e);
+				} else{
+					populateNodeLabels();			
+				}
+				
+				// get question and field labels
+				var f:FieldDTO;
+				var label:Object;
+				for each (var q:QuestionDTO in sm.questions){
+					if (!nu.isAdmin(sm.loginNode) && qu.isHidden(q)) continue;
+					
+					if (q.type == Constants.QUESTION_TYPE_RATING
+						|| q.type == Constants.QUESTION_TYPE_CHOICE
+						|| q.type == Constants.QUESTION_TYPE_CONTINUOUS
+						|| q.type == Constants.QUESTION_TYPE_DURATION_CHOOSER){
+						choiceQuestions.addItem(q);
+						for each (f in q.fields){
+							label = new Object();
+							label.label = f.label;
+							label.questionId = q.questionId;
+							label.name = qu.makeFieldKey(q, f);
+							labels.addItem(label);
+							allFieldLabels.addItem(label);
+						}
+					} else if (q.type == Constants.QUESTION_TYPE_MULTIPLE_RATING
+						|| q.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE){
+						choiceQuestions.addItem(q);
+						
+						for each (var tf:TextFieldDTO in q.textFields){
+							for each (f in q.fields){
+								label = new Object();
+								label.label = tf.label + "::" + f.label;
+								label.questionId = q.questionId;
+								label.name = qu.makeFieldsKey(q, f, tf);
+								labels.addItem(label);
+								allFieldLabels.addItem(label);
+							}
+						}
+					}
+				}
+				
+				// default number of recommendation requested
+				numRecs.selectedItem = "100";
+				
+				logger.debug("initialized.");
+			}					
+			
+			
+			[MessageHandler(selector="gotPlainNodes")]
+			public function gotPlainNodes():void{				
+				populateNodeLabels();
+			}
+			
+			
+			private function populateNodeLabels():void{				
+				var label:Object;
+				for each(var o:Object in sm.nodeMap){
+					if (String(o.nodeId) == "1") continue;
+					label = new Object();
+					label.label = o.label;
+					label.name = o.label;
+					label.questionId = "-1";
+					labels.addItem(label);
+					allNodeLabels.addItem(label);
+				}
+			}
+			
+
+			
+			/************************* rendering **********************************/
+			private function showIdentify(item:Object, column:GridColumn):String{
+				var v:Number = Number(item.identifyScore);
+				return v.toFixed(2);
+			}
+			
+			private function showSelect(item:Object, column:GridColumn):String{
+				var v:Number = Number(item.selectScore);
+				return v.toFixed(2);
+			}
+			
+			private function showScore(item:Object, column:GridColumn):String{
+				var v:Number = Number(item.finalScore);
+				return v.toFixed(2);
+			}						
+			
+			private function sortByIdentify(obj1:Object, obj2:Object, column:GridColumn):int{
+				var v1:Number = Number(obj1.identifyScore);
+				var v2:Number = Number(obj2.identifyScore);
+				if (v1 < v2) return -1;
+				else if (v1 > v2) return 1;
+				else return 0;
+			}
+			
+			private function sortBySelect(obj1:Object, obj2:Object, column:GridColumn):int{
+				var v1:Number = Number(obj1.selectScore);
+				var v2:Number = Number(obj2.selectScore);
+				if (v1 < v2) return -1;
+				else if (v1 > v2) return 1;
+				else return 0;
+			}
+			
+			private function sortByScore(obj1:Object, obj2:Object, column:GridColumn):int{
+				var v1:Number = Number(obj1.finalScore);
+				var v2:Number = Number(obj2.finalScore);
+				if (v1 < v2) return -1;
+				else if (v1 > v2) return 1;
+				else return 0;
+			}	
+			
+			private function showRecommendation():void{
+				var item:Object = recGrid.selectedItem;
+				if (item == null){
+					Alert.show(selectRecommendationMessage);
+					return;
+				}
+				
+				var url:String;
+				url = sm.baseURL + "/vis_get_node_info.jsp?node=" + item.recId;				
+				navigateToURL(new URLRequest(url));
+			}
+			
+			
+			/********************** search options ****************************/
+ 			private function toggle():void{
+				searchDetailsBox.visible = !searchDetailsBox.visible;
+				searchDetailsBox.includeInLayout = !searchDetailsBox.includeInLayout;
+				//toggleBtn.setStyle("icon", searchDetailsBox.visible?DOWN_ARROW:UP_ARROW);
+				
+				if (!searchDetailsBox.visible){
+					logger.info("Enlist all labels...");
+					labels = new ArrayCollection();
+					labels.addAll(allNodeLabels);
+					labels.addAll(allFieldLabels);
+					toggleBtn.label = showLabel;
+				} else {
+					selectBox.selectedIndex = -1;
+					nodeTypeBox.selectedIndex = -1;
+					questionBox.selectedIndex = -1;
+					fieldBox.selectedIndex = -1;
+					toggleBtn.label = hideLabel;					
+				}
+			}	
+			
+			private function selectHandler():void{
+				if (selectBox.selectedItem == "NodeType"){
+					labels = allNodeLabels;
+					gu.show(nodeTypeBox);
+					gu.hide(questionBox);
+					gu.hide(fieldBox);
+				} else {
+					labels = allFieldLabels;
+					gu.hide(nodeTypeBox);
+					gu.show(questionBox);							
+				}
+			}
+			
+			private function nodeTypeHandler():void{
+				var ntd:Object = nodeTypeBox.selectedItem;
+				labels = new ArrayCollection();
+				for each(var o:Object in sm.nodeMap){
+					if (String(o.nodeId) == "1") continue;
+					if (String(o.type) != ntd.type) continue;
+					var label:Object = new Object();
+					label.questionId = "-1";
+					label.label = o.label;
+					label.name = o.label;
+					labels.addItem(label);
+				}								
+			}	
+			
+			private function questionHandler():void{
+				var q:QuestionDTO = questionBox.selectedItem as QuestionDTO;
+				labels = new ArrayCollection();				
+				var label:Object;
+				var f:FieldDTO;
+				
+				if (q.type == Constants.QUESTION_TYPE_RATING
+					|| q.type == Constants.QUESTION_TYPE_CHOICE
+					|| q.type == Constants.QUESTION_TYPE_CONTINUOUS
+					|| q.type == Constants.QUESTION_TYPE_DURATION_CHOOSER){
+					for each (f in q.fields){
+						label = new Object();
+						label.label = f.label;
+						label.questionId = q.questionId;
+						label.name = qu.makeFieldKey(q, f);
+						labels.addItem(label);
+					}
+				} else if (q.type == Constants.QUESTION_TYPE_MULTIPLE_RATING
+					|| q.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE){						
+					for each (var tf:TextFieldDTO in q.textFields){
+						for each (f in q.fields){
+							label = new Object();
+							label.label = tf.label + "::" + f.label;
+							label.questionId = q.questionId;
+							label.name = qu.makeFieldsKey(q, f, tf);
+							labels.addItem(label);
+						}
+					}
+				}
+				
+				gu.show(fieldBox);
+				fieldBox.dataProvider = labels;	
+				
+				if (labels.length > 0) {
+					var item:Object = labels[0];
+					searchBox.selectedItem = item;
+					searchBox.text = item.label;
+				}
+			}	
+			
+			private function fieldHandler():void{
+				var item:Object = fieldBox.selectedItem;
+				searchBox.selectedItem = item;
+				searchBox.text = item.label;
+			} 	
+			
+			
+			/**************************** get recomendations ***********************/
+ 			private function getRecommendations():void{
+				logger.info("query recommendations...");
+				var questionId:String = "-1";
+				var input:String = searchBox.text;
+				var parts:Array = input.split("|");
+				var keywords:ArrayCollection = new ArrayCollection();
+				for (var i:int = 0; i < parts.length; i++){
+					var part:String = parts[i];
+					
+					var index:Number = -1;
+					var isNodeLabel:Boolean = false;
+					logger.debug("part: " + part);
+					for (index=0; index < allFieldLabels.length; index++){						
+						var label:Object = allFieldLabels.getItemAt(index);
+						logger.debug("fieldLabel: " + label.label);
+						if (label.label == part) break;
+					}
+					if (index >= allFieldLabels.length) isNodeLabel = true;
+					
+					if (nodeTypeBox.visible || isNodeLabel){
+						logger.debug("search by node label_______________");
+						var n:Object = nu.getNodeByLabel(part);
+						if (n == null || String(n.nodeId) == "1" || String(n.nodeId) == nodeIdInput.text){
+							Alert.show("invalid keyword: " + part);
+							return;
+						} else keywords.addItem(part);
+					} else if (questionBox.visible || !isNodeLabel) {
+						logger.debug("search by field label_______________");
+						questionId = searchBox.selectedItem.questionId;
+						var question:QuestionDTO = qu.getQuestionById(sm.questions, Number(questionId));
+						if (question == null) {
+							Alert.show("invalid choice: cannot find corresponding question");
+							return;
+						}
+						
+						keywords.addItem(String(searchBox.selectedItem.name));
+					}
+				}				
+				
+				var recEvent:RecommendationEvent = new RecommendationEvent(RecommendationEvent.GET_RECOMMENDATIONS);
+				recEvent.data = new Object();
+				recEvent.data.nodeId = _nodeId.toString();
+				recEvent.data.keywords = keywords;
+				recEvent.data.questionId = questionId.toString();
+				recEvent.data.numRecs = String(numRecs.selectedItem);				
+				// this is not used in current implementation, reserved for future
+				//recEvent.data.operator = operator.selectedItem;
+				recEvent.data.operator = "and";
+				
+				logger.debug("nodeId: " + _nodeId);
+				logger.debug("raw keywords: " + input);
+				logger.debug("numRecs: " + recEvent.data.numRecs);
+				logger.debug("operator: " + recEvent.data.operator);
+				
+				dispatcher(recEvent);
+			}
+			
+			[MessageHandler(selector="gotRecommendations")]
+			public function recommendationsHandler(event:RecommendationEvent):void{
+				recTypes = new ArrayCollection();
+				recTypeBox.selectedItem = null;
+				var typeMap:Object = new Object();
+				
+				recs = ArrayCollection(event.data);
+				logger.debug("there are " + recs.length + " recommendations.");						
+				if (recs == null || recs.length == 0){
+					Alert.show(noRecommendationMessage); 
+					return;
+				}
+				
+				var targetLabel:String = String(searchBox.selectedItem.label);
+				var targetName:String = String(searchBox.selectedItem.name);
+				for each (var rec:Object in recs){
+					rec.targetLabel = targetLabel;
+					rec.targetName = targetName;
+					var type:String = String(rec.type);
+					if (!typeMap.hasOwnProperty(type)){
+						typeMap[type] = "1";
+						recTypes.addItem(nu.getNodeTypeDescription(type));
+					}
+				}
+				
+				selectRecsByType();
+			} 	
+			
+			
+			/**************************** controlbar options ***********************/
+ 			private function selectRecsByType():void{
+ 				if (recTypeBox.selectedItem == null){
+					recs.filterFunction = null;					
+				} else {
+					recs.filterFunction = recFilterByType;
+				}
+				recs.refresh();
+			}	
+			
+			private function recFilterByType(item:Object):Boolean{
+				var type:String = recTypeBox.selectedItem.type;
+				if (item.type == type) return true;
+				else return false; 
+			} 
+			
+ 			private function viewReasons():void{
+ 				var selectedRecs:Vector.<Object> = recGrid.selectedItems;
+				if (selectedRecs == null || selectedRecs.length == 0) {
+					Alert.show(selectRecommendationMessage);
+					return;
+				}
+				
+				var url:String = sm.baseURL + 
+					"/vis?networkType=" + Constants.NETWORK_RECOMMENDER  + 
+					"&sourceId=" + _nodeId + 
+					"&questionId=" + searchBox.selectedItem.questionId +
+					"&os=" + flash.system.Capabilities.os.substr(0, 3) +
+					"&targetLabel=" + escape(searchBox.selectedItem.label) +
+					"&targetName=" + escape(searchBox.selectedItem.name);
+				for each (var rec:Object in selectedRecs){
+					url += ("&recId=" + rec.recId);
+					url += ("&identifyScore=" + rec.identifyScore);
+					url += ("&idMetricType="+ rec.idMetricType);
+					url += ("&selectScore=" + rec.selectScore);
+					url += ("&seMetricType="+ rec.seMetricType);
+					url += ("&finalScore=" + rec.finalScore);
+				}
+				navigateToURL(new URLRequest(url));	 			
+			}	
+			
+			private function viewReasons4All():void{
+				if (recs == null || recs.length == 0) {
+					Alert.show(noRecommendationMessage);
+					return;
+				}
+				
+ 				var url:String = sm.baseURL + 
+					"/vis?networkType=" + Constants.NETWORK_RECOMMENDER  + 
+					"&sourceId=" + _nodeId + 
+					"&questionId=" + searchBox.selectedItem.questionId +
+					"&numRecs=" + Number(numRecs.selectedItem) +
+					"&os=" + flash.system.Capabilities.os.substr(0, 3) +
+					"&targetLabel=" + escape(searchBox.selectedItem.label) +
+					"&targetName=" + escape(searchBox.selectedItem.name);
+				navigateToURL(new URLRequest(url));		 	
+			} 	
+			
+
+			
+			[MessageHandler(selector="RESIZE")]		
+			public function onResize(e:GeneralEvent):void{	
+				var moduleHeight:Number = Number(e.data.height);
+				var moduleWidth:Number = Number(e.data.width);
+				scroller.height = moduleHeight - 72;
+				scroller.width = moduleWidth;
+				logger.info("Set Scroller Size: width=" + scroller.width + ", height=" + scroller.height);
+			}
+		]]>
+	</fx:Script>
+
+
+	<s:Scroller id="scroller">
+		<s:VGroup width="100%" height="100%">
+			<s:Form>
+				<s:layout>
+					<s:FormLayout gap="-14"/>
+				</s:layout>
+				<s:FormItem id="searchTermItem" label="Search Term">			
+					<components:AutoComplete id="searchBox" 
+											 prefixOnly="false" 
+											 requireSelection="true"
+											 dataProvider="{labels}" 
+											 labelField="label" 
+											 width="200"/>
+				</s:FormItem>
+				<s:FormItem id="advancedItem" label="Advanced">
+					<s:VGroup>
+						<s:Button id="toggleBtn" click="toggle()" label="Show" width="200"/>
+						<s:VGroup id="searchDetailsBox" visible="false" includeInLayout="false">
+							<s:DropDownList id="selectBox" width="200"
+											dataProvider="{selectData}" 
+											change="selectHandler()"/>
+							<s:DropDownList id="nodeTypeBox" width="200" 
+											dataProvider="{sm.nodeTypeDescriptions}" 
+											labelField="label" 
+											visible="false" 
+											includeInLayout="false" 
+											change="nodeTypeHandler()"/>
+							<s:DropDownList id="questionBox" width="200" 
+											dataProvider="{choiceQuestions}" 
+											labelField="label" 
+											visible="false" 
+											includeInLayout="false"
+											change="questionHandler()"/>
+							<s:DropDownList id="fieldBox" width="200" 
+											labelField="label" 
+											visible="false" 
+											includeInLayout="false"
+											change="fieldHandler()"/>								
+						</s:VGroup>
+					</s:VGroup>			
+				</s:FormItem>
+				<s:FormItem id="numberOfRecsItem" label="Number of Recs">
+					<s:ComboBox id="numRecs" dataProvider="{numRecsList}" width="200"/>
+				</s:FormItem>	
+				<s:FormItem id="nodeIdItem" label="Node ID" visible="{editUser}" includeInLayout="{editUser}">
+					<s:TextInput id="nodeIdInput" text="{_nodeId}" focusOut="_nodeId = Number(nodeIdInput.text)" width="200"/>
+				</s:FormItem>
+				<s:FormItem>
+					<s:HGroup width="100%" horizontalAlign="right">
+						<s:Button id="searchBtn" label="Search" click="getRecommendations()"/>
+					</s:HGroup>
+				</s:FormItem>
+			</s:Form>
+			
+			<s:DataGrid id="recGrid" dataProvider="{recs}" 
+						height="100%" width="100%"
+						textAlign="left" 
+						selectionMode="multipleRows" 
+						doubleClickEnabled="true" 
+						doubleClick="showRecommendation()">
+				<s:columns>
+					<s:ArrayList>
+						<!--<s:GridColumn headerText="" itemRenderer="ciknow.recommendation.RecIdRenderer" width="30"/>-->
+						<s:GridColumn id="labelColumn" headerText="Recommendations" dataField="label"/>
+						<s:GridColumn id="typeColumn" headerText="Type" dataField="type" width="100"/>
+						<s:GridColumn id="identificationColumn" headerText="Connection To Query" 
+									  labelFunction="showIdentify" 
+									  sortable="true" sortDescending="true" sortCompareFunction="sortByIdentify" 
+									  headerRenderer="edu.northwestern.ciknow.recommendation.presentation.renderer.DoubleLineHeaderRenderer" 
+									  width="80"/>
+						<s:GridColumn id="selectionColumn" headerText="Connection To You" 
+									  labelFunction="showSelect" 
+									  sortable="true" sortDescending="true" sortCompareFunction="sortBySelect" 
+									  headerRenderer="edu.northwestern.ciknow.recommendation.presentation.renderer.DoubleLineHeaderRenderer" 
+									  width="80"/>
+						<s:GridColumn id="scoreColumn" headerText="Score" labelFunction="showScore" 
+									  sortable="true" sortDescending="true" sortCompareFunction="sortByScore" 
+									  width="50"/>
+						<s:GridColumn id="whyColumn" headerText="Why?" sortable="false" width="50"
+									  itemRenderer="edu.northwestern.ciknow.recommendation.presentation.renderer.ReasonItemRenderer"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>			
+		</s:VGroup>
+	</s:Scroller>
+	
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Label id="viewRecByTypeLabel" text="View Recommendations By Types"/>
+			<s:DropDownList id="recTypeBox" dataProvider="{recTypes}" change="selectRecsByType()" width="200"/>
+			
+			<s:Spacer width="10"/>
+			<s:Label text="|"/>
+			<s:Spacer width="10"/>
+			
+			<s:Label id="viewVisLabel" text="View Visualizations"/>
+			<s:Button id="selectedBtn" click="viewReasons()" label="Selected"/>	
+			<s:Button id="allBtn" click="viewReasons4All()" label="All"/>
+		</s:HGroup>
+	</s:controlBarContent>
+</s:Panel>

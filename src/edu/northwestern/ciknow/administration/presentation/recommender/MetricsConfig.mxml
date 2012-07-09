@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 creationComplete="init()" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>		
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.popup.TextDisplayPopup;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.HBox;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.Text;
+			import mx.core.FlexGlobals;
+			import mx.logging.ILogger;
+			
+			import org.spicefactory.parsley.core.context.Context;	
+			
+			private static var logger:ILogger = LogUtil.getLog(MetricsConfig);
+			
+			private var p:TextDisplayPopup = null;
+			private var buttonMap:Object = new Object();
+			private var config:XML = null;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+				
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			public var source:String = "identification";
+
+			public var calculationTitle:String = "Metrics Computation";
+			public var calculationMessage:String = "Calculating ...";
+			
+			///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////			
+			private function init():void{
+				var w:Number = 100;
+				
+				// header
+				var hbox:HBox = new HBox();
+				hbox.styleName = "headerRow";
+				var label:Text = new Text();
+				label.styleName = "firstColumnAlign";
+				label.width = 150;
+				hbox.addChild(label);
+				var ntd:Object;				
+				for each (ntd in sm.nodeTypeDescriptions){
+					label = new Text();
+					label.text = ntd.label;
+					label.styleName = "columnAlign";
+					label.width = w;
+					hbox.addChild(label);
+				}				
+				vbox.addChild(hbox);
+				
+				// row by row
+				var count:int = 1;
+				for (var i:Number = 0; i < sm.nodeTypeDescriptions.length; i++){
+					ntd = sm.nodeTypeDescriptions.getItemAt(i);
+					var nodeType:String = String(ntd.type);					
+					hbox = new HBox();
+					if (count%2 == 0) hbox.styleName = "evenRow";
+					label = new Text();
+					label.text = ntd.label;
+					label.styleName = "firstColumnAlign";
+					label.width = 150;
+					hbox.addChild(label);
+					
+					buttonMap[nodeType] = new Object();
+					for (var j:Number = 0; j < i+1; j++){
+						var button:mx.controls.Button = new mx.controls.Button();
+						button.styleName = "columnAlign";
+						button.width = w;
+						
+						var ntd2:Object = sm.nodeTypeDescriptions.getItemAt(j);
+						var nodeType2:String = String(ntd2.type);
+						var data:Object = new Object();
+						data.row = nodeType;
+						data.col = nodeType2;
+						button.data = data;
+						button.label = "---";
+						
+						// push buttons into map
+						buttonMap[nodeType][nodeType2] = button;
+						
+						// listener
+						button.addEventListener(MouseEvent.CLICK, configPair);
+						
+						hbox.addChild(button);
+					}
+					
+					vbox.addChild(hbox);
+					count++;
+				}					
+			}
+			
+			[MessageHandler(selector="gotRecConfig")]
+			public function applyConfig(e:RecommendationEvent):void{
+				config = sm.recConfigXML.child(source)[0];
+				logger.debug("apply configuration settings:" + source);
+				
+				for each (var pair:XML in config.pair){
+					var row:String = pair.@row;
+					var col:String = pair.@col;
+					var metric:String = pair.@metric;
+					
+					if (buttonMap[row] != null){
+						var button:mx.controls.Button = mx.controls.Button(buttonMap[row][col]);
+						if (button != null) {
+							button.label = metric;
+							button.data.pair = pair;
+						}
+					}
+				}
+			}
+			
+			private function configPair(e:MouseEvent):void{			
+				var button:mx.controls.Button = mx.controls.Button(e.target);				
+				var p:MetricsConfigPopup = new MetricsConfigPopup();
+				var pair:XML = XML(button.data.pair);	
+				
+				// create config fragment if absent
+				if (!button.data.hasOwnProperty("pair")) {
+					pair = <pair row={button.data.row} col={button.data.col}/>;
+					config.appendChild(pair);
+					button.data.pair = pair;
+				}	
+				
+				p.source = source;
+				p.pair = pair;	
+				p.parentButton = button;							
+				p.title = "Pair :: " + pair.@row + " - " + pair.@col;	
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+			}								
+			
+			private function reset():void{
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.GET_REC_CONFIG);
+				dispatcher(e);
+			}
+			
+			private function calculate():void{
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.COMPUTE_RECOMMENDATIONS);
+				var d:Object = new Object();
+				d.source = source;
+				d.dirtyonly = dirtyOnlyBox.selected?"1":"0";
+				e.data = d;				
+				dispatcher(e);
+				
+				p = new TextDisplayPopup();
+				gu.showPopup(p);
+				p.title = calculationTitle;
+				p.msg = calculationMessage;
+				p.imagesource = sm.baseURL + "/images/calculate.jpg";
+				p.showCloseButton(false);
+			}
+			
+			[MessageHandler(selector="computedRecommendations")]
+			public function computeHandler(event:RecommendationEvent):void{
+				var d:Object = event.data;
+				if (d.source == source && d.row == null && d.col == null) {		
+					p.msg = String(event.data.msg);
+					p.textColor = (event.data.success == "1")? 0x006400:0xff0000;
+					p.showCloseButton(true);
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:VBox id="vbox" height="100%" width="100%"/>	
+	
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="resetBtn" label="Refresh" click="reset()" toolTip="Get current configuration from server"/>
+			<s:Button id="calculateBtn" label="Calculate" click="calculate()"/>	
+			<s:CheckBox id="dirtyOnlyBox" label="Only Calculate Changed Pairs" selected="true"/>	
+		</s:HGroup>	
+	</s:controlBarContent>
+</s:Panel>

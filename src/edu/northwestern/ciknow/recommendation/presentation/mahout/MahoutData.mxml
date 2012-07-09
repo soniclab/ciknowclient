@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 creationComplete="init()" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[			
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private static var logger:ILogger = LogUtil.getLog(MahoutData);
+			
+			[Bindable] 
+			private var relations:ArrayCollection;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			private function init():void{
+				logger.debug("initializing...");
+			}					
+			
+			
+			private function getRelations():void{
+				logger.info("get relations by user and item type");
+				if (userTypeBox.selectedItem == null) {
+					Alert.show("Please select User type.");
+					return;
+				}
+				if (itemTypeBox.selectedItem == null) {
+					Alert.show("Please select Item type.");
+					return;
+				}
+				var fromNodeType:String = userTypeBox.selectedItem.type;
+				var toNodeType:String = itemTypeBox.selectedItem.type;
+				
+				var e:EdgeEvent = new EdgeEvent(EdgeEvent.GET_EDGE_TYPES_BY_FROM_TO_NODE_TYPES);
+				e.data.fromNodeType = fromNodeType;
+				e.data.toNodeType = toNodeType;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotEdgeTypesByFromToNodes")]
+			public function gotEdgeTypes(event:EdgeEvent):void{
+				relations = ArrayCollection(event.data);
+				relations.sort = gu.getSort("label");
+				relations.sort.fields.push(new SortField("direction", true, true));
+				relations.refresh();
+			}
+			
+			private function generate():void{
+				logger.info("generate preferences data ...");
+				var ed:Object = relationList.selectedItem;
+				if (ed == null){
+					Alert.show("Please select relation.");
+					return;
+				}
+				var edgeType:String = ed.type;
+				var direction:String = ed.direction;
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.GENERATE_MAHOUT_PREFERENCES);
+				e.data.edgeType = edgeType;
+				e.data.direction = direction;
+				dispatcher(e);
+			}
+			
+			private function download():void{
+				logger.info("download preferences data ...");
+				iu.downloadMahoutPreferences();
+			}
+			
+			private function upload():void{
+				logger.info("upload preferences data ...");
+				iu.uploadMahoutPreferences();
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form id="mahoutForm" height="100%" width="100%">
+		<s:FormItem label="User">
+			<s:DropDownList id="userTypeBox" dataProvider="{sm.nodeTypeDescriptions}" labelField="label" width="400"/>
+		</s:FormItem>
+		<s:FormItem label="Item">
+			<s:DropDownList id="itemTypeBox" dataProvider="{sm.nodeTypeDescriptions}" labelField="label" width="400"/>
+		</s:FormItem>
+		<s:FormItem label="Relation">
+			<s:Button label="Get Relations" click="getRelations()"/>
+			<s:List id="relationList" dataProvider="{relations}" width="400"/>
+		</s:FormItem>
+	</s:Form>
+	<s:controlBarContent>
+		<s:Button label="Generate" click="generate()"/>
+		<s:Button label="Download" click="download()"/>
+		<s:Button label="Upload" click="upload()"/>
+	</s:controlBarContent>	
+</s:Panel>

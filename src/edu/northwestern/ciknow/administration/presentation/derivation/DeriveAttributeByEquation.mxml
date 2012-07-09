@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%"
+					   title="Derive Attributes by Equation">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.utils.StringUtil;		
+			
+			[Bindable] private var equationOperators:ArrayCollection = new ArrayCollection(["+", "-", "/", "x"]);
+			[Bindable] private var numericAttrs:ArrayCollection;
+			
+			private var attrValueMap:Object = new Object();
+			
+			public var requireShortNameMessage:String = "Please specify question short name.";
+			public var duplicateShortNameMessage:String = "Question shortName is already exist.";
+			public var requireFieldNameMessage:String = "Please specify field name.";
+			public var requireNodeTypesMessage:String = "Please specify node types.";
+			public var requireEquationMessage:String = "Please select all parts of the equation.";
+			public var requireAttributeMessage:String = "Please select attribute first.";
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveAttributeByEquation);
+				super.init();
+				this.derivationType = Constants.DERIVE_ATTRIBUTE_BY_EQUATION;
+			}
+			
+			public override function derive():void{
+				var questionShortName:String = StringUtil.trim(questionShortNameTi.text);
+				if (questionShortName == "") {
+					Alert.show(requireShortNameMessage);
+					return;
+				}
+				var q:QuestionDTO = qu.getQuestionByShortName(sm.questions, questionShortName);
+				if (q != null){
+					Alert.show(duplicateShortNameMessage);	
+					return;
+				}
+				
+				var fieldName:String = StringUtil.trim(fieldNameTi.text);
+				if (fieldName == "") {
+					Alert.show(requireFieldNameMessage);
+					return;
+				}
+				
+				var nds:Vector.<Object> = typeBox.selectedItems;
+				if (nds == null || nds.length == 0) {
+					Alert.show(requireNodeTypesMessage);
+					return;
+				}
+				
+				if (varLeft.selectedItem == null || 
+					varRight.selectedItem == null || 
+					eqOperator.selectedItem == null){
+					Alert.show(requireEquationMessage);
+					return;
+				} 				
+				
+				var e:NodeEvent = new NodeEvent(NodeEvent.DERIVE_BY_EQUATION);
+				e.data = new Object();
+				e.data.questionShortName = questionShortName;
+				e.data.fieldName = fieldName;				
+				e.data.nodeTypes = nu.getNodeTypes(nds);
+				
+				var varLeftName:String = varLeft.selectedItem.name;
+				e.data.varLeft = varLeftName;
+				if (varLeftName.indexOf(Constants.QUESTION_PREFIX) == 0){
+					e.data.varLeftValues = attrValueMap[varLeftName];
+				}
+				
+				var varRightName:String = varRight.selectedItem.name;
+				e.data.varRight = varRightName;
+				if (varRightName.indexOf(Constants.QUESTION_PREFIX) == 0){
+					e.data.varRightValues = attrValueMap[varRightName];
+				}
+				
+				e.data.operator = String(eqOperator.selectedItem);
+
+				dispatcher(e);			
+			}
+
+			private function getNumericAttrs():void{
+				var nodeTypes:ArrayCollection = nu.getNodeTypes(typeBox.selectedItems);
+				if (nodeTypes == null || nodeTypes.length == 0){
+					Alert.show(requireNodeTypesMessage);
+					return;
+				}				
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_NUMERIC_ATTRIBUTES);
+				e.data = new Object();
+				e.data.nodeTypes = nodeTypes;
+				e.data.loginNodeId = sm.loginNode.nodeId.toString();
+				dispatcher(e);
+			}
+
+			[MessageHandler(selector="gotNumericAttributes")]
+			public function numericAttributeHandler(event:GeneralEvent):void{
+				numericAttrs = ArrayCollection(event.data);
+				numericAttrs.sort = gu.getSort("label");
+				numericAttrs.refresh();
+			}
+			
+			private function showLeftDetails():void{
+				if (varLeft.selectedItem == null) {
+					Alert.show(requireAttributeMessage);
+					return;
+				}
+				var attrName:String = varLeft.selectedItem.name;
+				showDetails(attrName);
+			}
+			
+			private function showRightDetails():void{
+				if (varRight.selectedItem == null) {
+					Alert.show(requireAttributeMessage);
+					return;
+				}				
+				var attrName:String = varRight.selectedItem.name;
+				showDetails(attrName);
+			}
+			
+			private function showDetails(attrName:String):void{
+				var p:NodeAttributeDetailsPopup = new NodeAttributeDetailsPopup();
+				p.attrName = attrName;
+				p.attrValueMap = attrValueMap;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);				
+			}
+		]]>
+	</fx:Script>
+
+	<s:Label text="{instruction}"/>
+	
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="shortNameItem" label="Question Short Name">
+			<s:TextInput id="questionShortNameTi" width="500"/>
+		</s:FormItem>			
+		<s:FormItem id="fieldNameItem" label="Name">
+			<s:TextInput id="fieldNameTi" width="500"/>				
+		</s:FormItem>
+		<s:FormItem id="nodeTypesItem" label="Type of Nodes" width="100%">
+			<s:DataGrid id="typeBox" 
+						 dataProvider="{sm.nodeTypeDescriptions}" 
+						 width="500" requestedRowCount="7"
+						 selectionMode="multipleRows">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="label" headerText=""/>
+					</s:ArrayList>
+				</s:columns>						
+			</s:DataGrid>
+		</s:FormItem>				
+		<s:FormItem id="leftHandSideItem" label="Left Hand Side">
+			<s:DropDownList id="varLeft" dataProvider="{numericAttrs}" width="500"/>
+			<s:HGroup verticalAlign="baseline">				
+				<s:Button id="leftRefreshBtn" click="getNumericAttrs()" label="Refresh"/>
+				<s:Button id="leftDetailsBtn" click="showLeftDetails()" label="Details"/>	
+			</s:HGroup>
+		</s:FormItem>	
+		<s:FormItem id="operatorItem" label="Operator">
+			<s:DropDownList id="eqOperator" dataProvider="{equationOperators}" width="500"/>
+		</s:FormItem>
+		<s:FormItem id="rightHandSideItem" label="Right Hand Side">
+			<s:DropDownList id="varRight" dataProvider="{numericAttrs}" width="500"/>
+			<s:HGroup verticalAlign="baseline">
+				<s:Button id="rightRefreshBtn" click="getNumericAttrs()" label="Refresh"/>	
+				<s:Button id="rightDetailsBtn" click="showRightDetails()" label="Details"/>				
+			</s:HGroup>
+		</s:FormItem>																			
+	</s:Form>
+</derivation:DeriveBase>

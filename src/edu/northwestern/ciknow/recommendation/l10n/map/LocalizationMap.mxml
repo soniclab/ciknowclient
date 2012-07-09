@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<l10n:LocaleMap 	enableLog="false"
+					xmlns:factory="mx.core.*" 
+					xmlns:mx="http://www.adobe.com/2006/mxml" 
+					xmlns:l10n="http://l10n.babelfx.org/" >
+	
+	<mx:Metadata>
+		[ResourceBundle("recommendation")]
+	</mx:Metadata>
+	
+	<mx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.recommendation.presentation.*;
+			import edu.northwestern.ciknow.recommendation.presentation.popup.*;
+			import edu.northwestern.ciknow.recommendation.presentation.mahout.*;
+			import org.babelfx.commands.ExternalLocaleCommand;
+			/* 
+			 * Using compiler arguments -locale=en_US,es_ES,fr_FR,zh_CN -allow-source-path-overlap=true -source-path+=l10n/locale/{locale}
+		     * with the metaTag above forces the compiler to EMBED all locales as compiled resource bundles
+			 * Or use -locale="en_US" without [ResourceBundles] to force runtime loading of external bundles for es_ES, zh_CN, fr_FR
+			 * Note: you must should ANT build scripts to build and deploy the external bundles; see /build/buildResourceBundles.xml
+			 */
+			
+		]]>
+	</mx:Script>
+	
+	<!-- 
+		The command factory instance below allows the l10nInjection engine to load external resource bundles from
+	     a custom deploy directory 'assets/locales/' name encoded by locale code
+	     e.g.  en_US.swf, zh_CN.swf, etc.
+	-->
+	<l10n:commandFactory>
+		 <factory:ClassFactory generator="{ExternalLocaleCommand}">
+			 <factory:properties>
+				 <mx:Object externalPath="assets/locales/\{0\}.swf"/>
+			 </factory:properties>
+		 </factory:ClassFactory>
+	</l10n:commandFactory>	
+
+	<l10n:ResourceInjector bundleName="recommendation" target="{Recommendation}">
+		<l10n:ResourceSetter property="resourceTab.label" key="rec.pull"/>
+		<l10n:ResourceSetter property="teamTab.label" key="rec.team"/>
+		<l10n:ResourceSetter property="mahoutTab.label" key="rec.mahout"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="recommendation" target="{PullRecommender}">
+		<l10n:ResourceSetter property="noRecommendationMessage" key="rec.pull.noRecommendationMessage"/>
+		<l10n:ResourceSetter property="selectRecommendationMessage" key="rec.pull.selectRecommendationMessage"/>
+		<l10n:ResourceSetter property="showLabel" key="rec.pull.toggle.show"/>
+		<l10n:ResourceSetter property="hideLabel" key="rec.pull.toggle.hide"/>
+		
+		<l10n:ResourceSetter property="searchTermItem.label" key="rec.pull.searchTerm"/>
+		<l10n:ResourceSetter property="advancedItem.label" key="rec.pull.advanced"/>
+		<l10n:ResourceSetter property="toggleBtn.label" key="rec.pull.toggle.show"/>
+		<l10n:ResourceSetter property="numberOfRecsItem.label" key="rec.pull.numberOfRecs"/>
+		<l10n:ResourceSetter property="nodeIdItem.label" key="rec.pull.nodeId"/>
+		<l10n:ResourceSetter property="searchBtn.label" key="rec.pull.search"/>
+
+		<l10n:ResourceSetter property="labelColumn.headerText" key="rec.pull.recLabel"/>
+		<l10n:ResourceSetter property="typeColumn.headerText" key="rec.pull.recType"/>
+		<l10n:ResourceSetter property="identificationColumn.headerText" key="rec.pull.recIdentification"/>
+		<l10n:ResourceSetter property="selectionColumn.headerText" key="rec.pull.recSelection"/>
+		<l10n:ResourceSetter property="scoreColumn.headerText" key="rec.pull.recScore"/>
+		<l10n:ResourceSetter property="whyColumn.headerText" key="rec.pull.recWhy"/>
+		
+		<l10n:ResourceSetter property="viewRecByTypeLabel.text" key="rec.pull.viewRecByType"/>
+		<l10n:ResourceSetter property="viewVisLabel.text" key="rec.pull.viewVis"/>
+		<l10n:ResourceSetter property="selectedBtn.label" key="rec.pull.selected"/>
+		<l10n:ResourceSetter property="allBtn.label" key="rec.pull.all"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="recommendation" target="{TeamAssembly}">
+		<l10n:ResourceSetter property="invalidInputMessage" key="rec.team.invalidInputMessage"/>
+		<l10n:ResourceSetter property="selectNodeGroupMessage" key="rec.team.selectNodeGroupMessage"/>
+		<l10n:ResourceSetter property="selectDiversityMessage" key="rec.team.selectDiversityMessage"/>
+		<l10n:ResourceSetter property="selectSimilarityMessage" key="rec.team.selectSimilarityMessage"/>
+		<l10n:ResourceSetter property="selectNetworkMessage" key="rec.team.selectNetworkMessage"/>
+		<l10n:ResourceSetter property="totalNodesPrefix" key="rec.team.totalNodesPrefix"/>
+		<l10n:ResourceSetter property="minTeamPrefix" key="rec.team.minTeamPrefix"/>
+		<l10n:ResourceSetter property="maxTeamPrefix" key="rec.team.maxTeamPrefix"/>
+		
+		<l10n:ResourceSetter property="nodeGroupItem.label" key="rec.team.nodeGroup"/>
+		<l10n:ResourceSetter property="numTeamItem.label" key="rec.team.numTeam"/>
+		<l10n:ResourceSetter property="getSuggestionBtn.label" key="rec.team.getSuggestion"/>
+		<l10n:ResourceSetter property="minTeamSizeItem.label" key="rec.team.minTeamSize"/>
+		<l10n:ResourceSetter property="maxTeamSizeItem.label" key="rec.team.maxTeamSize"/>
+		<l10n:ResourceSetter property="diversityItem.label" key="rec.team.diversityQuestion"/>
+		<l10n:ResourceSetter property="similarityItem.label" key="rec.team.similarityQuestion"/>
+		<l10n:ResourceSetter property="densityItem.label" key="rec.team.densityQuestion"/>
+		<l10n:ResourceSetter property="iterationItem.label" key="rec.team.iteration"/>
+		<l10n:ResourceSetter property="iterationNote.text" key="rec.team.iteration.note"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="rec.team.config"/>
+		<l10n:ResourceSetter property="assembleBtn.label" key="rec.team.assemble"/>
+		<l10n:ResourceSetter property="showResultsBtn.label" key="rec.team.showResults"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="recommendation" target="{TeamAssemblyConfigPopup}">
+		<l10n:ResourceSetter property="title" key="rec.team.configPopup.title"/>
+		
+		<l10n:ResourceSetter property="selectItemMessage" key="rec.team.configPopup.selectItemMessage"/>
+		<l10n:ResourceSetter property="invalidInputMessage" key="rec.team.configPopup.invalidInputMessage"/>
+		<l10n:ResourceSetter property="diversityTooSmallMessage" key="rec.team.configPopup.diversityTooSmallMessage"/>
+		<l10n:ResourceSetter property="diversityTooLargeMessage" key="rec.team.configPopup.diversityTooLargeMessage"/>
+		<l10n:ResourceSetter property="invalidDiversitySumMessage" key="rec.team.configPopup.invalidDiversitySumMessage"/>
+		<l10n:ResourceSetter property="invalidSumMessage" key="rec.team.configPopup.invalidSumMessage"/>
+		<l10n:ResourceSetter property="diversityQuestionPrefix" key="rec.team.configPopup.diversityQuestionPrefix"/>
+		
+		<l10n:ResourceSetter property="diversityItem.label" key="rec.team.configPopup.diversity"/>
+		<l10n:ResourceSetter property="similarityItem.label" key="rec.team.configPopup.similarity"/>
+		<l10n:ResourceSetter property="densityItem.label" key="rec.team.configPopup.density"/>
+		<l10n:ResourceSetter property="sumItem.label" key="rec.team.configPopup.sum"/>
+		<l10n:ResourceSetter property="diversityNote.text" key="rec.team.configPopup.diversityNote"/>
+		<l10n:ResourceSetter property="attributeColumn.headerText" key="rec.team.configPopup.attributeColumn"/>
+		<l10n:ResourceSetter property="weightColumn.headerText" key="rec.team.configPopup.weightColumn"/>
+		
+		<l10n:ResourceSetter property="saveBtn.label" key="rec.team.configPopup.save"/>
+		<l10n:ResourceSetter property="setEqualWeightsBtn.label" key="rec.team.configPopup.setEqualWeights"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="rec.team.configPopup.close"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="recommendation" target="{TeamAssemblyResultPopup}">
+		<l10n:ResourceSetter property="title" key="rec.team.resultPopup.title"/>
+		
+		<l10n:ResourceSetter property="noTeamMessage" key="rec.team.resultPopup.noTeamMessage"/>
+		<l10n:ResourceSetter property="requireAttributeNameMessage" key="rec.team.resultPopup.requireAttributeNameMessage"/>
+		
+		<l10n:ResourceSetter property="strategyLabel.text" key="rec.team.resultPopup.strategy"/>
+		
+		<l10n:ResourceSetter property="idColumn.headerText" key="rec.team.resultPopup.idColumn"/>
+		<l10n:ResourceSetter property="sizeColumn.headerText" key="rec.team.resultPopup.sizeColumn"/>
+		<l10n:ResourceSetter property="scoreColumn.headerText" key="rec.team.resultPopup.scoreColumn"/>
+		<l10n:ResourceSetter property="diversityColumn.headerText" key="rec.team.resultPopup.diversityColumn"/>
+		<l10n:ResourceSetter property="similarityColumn.headerText" key="rec.team.resultPopup.similarityColumn"/>
+		<l10n:ResourceSetter property="densityColumn.headerText" key="rec.team.resultPopup.densityColumn"/>
+		<l10n:ResourceSetter property="membersColumn.headerText" key="rec.team.resultPopup.membersColumn"/>		
+		
+		<l10n:ResourceSetter property="saveBtn.label" key="rec.team.resultPopup.save"/>
+		<l10n:ResourceSetter property="downloadBtn.label" key="rec.team.resultPopup.download"/>
+		<l10n:ResourceSetter property="attributeNameLabel.text" key="rec.team.resultPopup.attributeName"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="rec.team.resultPopup.close"/>
+	</l10n:ResourceInjector>
+
+</l10n:LocaleMap>

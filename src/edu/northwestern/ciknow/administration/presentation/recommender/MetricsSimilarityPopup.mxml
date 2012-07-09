@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   creationComplete="init()" close="close()"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.popup.TextDisplayPopup;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.Canvas;
+			import mx.containers.HBox;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.controls.CheckBox;
+			import mx.controls.Text;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			
+			import org.spicefactory.parsley.core.context.Context;
+
+			private static var logger:ILogger = LogUtil.getLog(MetricsSimilarityPopup);
+
+			[Bindable] 
+			private var metricTypes:ArrayCollection = new ArrayCollection([
+				Constants.PEARSON, 
+				Constants.COSINE, 
+				Constants.EUCLIDEAN, 
+				Constants.SEUCLIDEAN, 
+				Constants.PMATCH, 
+				Constants.SPMATCH]);
+			private var buttonMap:Object = new Object();
+			private var buttonArray:ArrayCollection;
+			private var newPair:XML = null;
+			private var p:TextDisplayPopup = null;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			public var source:String = "identification";
+			public var pair:XML = null;
+			public var parentButton:mx.controls.Button = null;
+			
+			public var lastCalculateMessage:String = "Last calculation time: ";
+			public var selectColumnMessage:String = "SELECT Column(s) ==>";
+			public var calculationTitle:String = "Similarity Metrics Computation";
+			public var calculationMessage:String = "Calculating ...";
+			
+			private function init():void{	
+				var m:String = pair.@metric;
+				if (m == null || 
+					(m != Constants.SP && m != Constants.ERGM)) {
+					newPair = new XML(pair.toXMLString());
+				} else {
+					newPair = <pair/>;
+					newPair.@row = pair.@row;
+					newPair.@col = pair.@col;
+				}
+				//logger.debug("pair: " + pair.toXMLString());
+				//logger.debug("newPair: " + newPair.toXMLString());
+				
+				
+				var ntd:Object;
+				
+				// find out what data/columns are selected
+				var selectedColumns:Object = new Object();
+				for each (var entry:XML in newPair.entry){
+					selectedColumns[entry.@t] = "1";
+				}
+				
+				// initialize button map
+				for each (ntd in sm.nodeTypeDescriptions){
+					buttonMap[String(ntd.type)] = new ArrayCollection();
+				}
+				
+				// set metric type
+				if ("@metric" in newPair){					
+					var metricType:String = String(newPair.@metric);
+					metricBox.selectedItem = metricType;
+					logger.debug("Set metric type: " + metricType);
+					//metricBox.validateNow();
+				} else {					
+					metricBox.selectedItem = Constants.EUCLIDEAN;
+					logger.debug("Set default metric type: " + Constants.EUCLIDEAN);
+				}
+				
+				var w:Number = 100;
+				var hbox:HBox;
+				var label:Text;
+				var button:mx.controls.Button;
+				
+				// checkboxes
+				hbox = new HBox();				
+				label = new Text();
+				label.width = 150;
+				label.text = selectColumnMessage;	
+				label.styleName = "firstColumnAlign";
+				hbox.addChild(label);
+				
+				for each (ntd in sm.nodeTypeDescriptions){					
+					var cbox:CheckBox = new CheckBox();
+					if (selectedColumns.hasOwnProperty(String(ntd.type))) cbox.selected = true;
+					cbox.styleName = "columnAlign";
+					cbox.data = new Object();
+					cbox.data.nodeType = ntd.type;
+					
+					var holder:Canvas = new Canvas();
+					holder.width = w;
+					holder.addChild(cbox);
+					hbox.addChild(holder);	
+					
+					cbox.addEventListener(MouseEvent.CLICK, selectColumn);				
+				}	
+				vbox.addChild(hbox);
+				
+				// header
+				hbox = new HBox();		
+				hbox.styleName = "headerRow";
+				label = new Text();	
+				label.styleName = "firstColumnAlign";
+				label.width = 150;
+				hbox.addChild(label);
+				for each (ntd in sm.nodeTypeDescriptions){
+					label = new Text();
+					label.text = ntd.label;
+					label.styleName = "columnAlign";
+					label.width = w;
+					hbox.addChild(label);					
+				}	
+				vbox.addChild(hbox);
+				
+				var rows:Array;
+				if (newPair.@row == newPair.@col) rows = [newPair.@row];
+				else rows = [newPair.@row, newPair.@col];				
+				for each (var fromNodeType:String in rows){
+					hbox = new HBox();
+					label = new Text();
+					label.width = 150;
+					label.styleName = "firstColumnAlign";
+					label.text = nu.getNodeTypeDescription(fromNodeType).label;
+					hbox.addChild(label);
+					for each (ntd in sm.nodeTypeDescriptions){
+						button = new mx.controls.Button();
+						button.label = "---";
+						button.width = w;
+						button.styleName = "columnAlign";
+						
+						var d:Object = new Object();
+						d.f = fromNodeType;
+						d.t = ntd.type;						
+						for each (entry in newPair.entry){
+							if (entry.@f == fromNodeType && entry.@t == ntd.type){
+								d.entry = entry;
+								button.label = entry.edge.length();
+								break;
+							}
+						}	
+						
+						if (selectedColumns.hasOwnProperty(ntd.type)){									
+							
+						} else {
+							button.enabled = false;
+						}
+						
+						button.data = d;
+						
+						button.addEventListener(MouseEvent.CLICK, selectEdges);
+						
+						hbox.addChild(button);
+						
+						buttonArray = buttonMap[ntd.type] as ArrayCollection;
+						buttonArray.addItem(button);
+					}
+					vbox.addChild(hbox);					
+				}		
+				
+				// last calc time
+				var t:String = newPair.@lastCalcTime;
+				if (t != null && t != ""){
+					calcLabel.text = lastCalculateMessage + " " + t;
+				}		
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function selectColumn(event:MouseEvent):void{
+				var cbox:CheckBox = CheckBox(event.target);
+				var entry:XML;
+				var button:mx.controls.Button;
+				buttonArray = buttonMap[cbox.data.nodeType] as ArrayCollection;
+				
+				if (cbox.selected) {					
+					entry = <entry f={newPair.@row} t={cbox.data.nodeType} />;
+					newPair.appendChild(entry);
+					
+					button = buttonArray.getItemAt(0) as mx.controls.Button;
+					button.enabled = true;
+					button.data.entry = entry;
+					
+					if (newPair.@row != newPair.@col) {
+						entry = <entry f={newPair.@col} t={cbox.data.nodeType}/>;
+						newPair.appendChild(entry);
+						
+						button = buttonArray.getItemAt(1) as mx.controls.Button;
+						button.enabled = true;
+						button.data.entry = entry;						
+					}
+				}else {
+					var list:XMLList = newPair.entry.(@t == cbox.data.nodeType);
+					for (var i:int = list.length() - 1; i>=0; i--){
+						delete list[i];
+					}
+					
+					for each (button in buttonArray){
+						button.enabled = false;
+						delete button.data.entry;
+					}
+				}	
+			}
+			
+			private function selectEdges(event:MouseEvent):void{
+				var button:mx.controls.Button = mx.controls.Button(event.target);
+				var entry:XML = button.data.entry;
+				var p:MetricsSimilarityEdgesPopup = new MetricsSimilarityEdgesPopup();
+				p.entry = entry;
+				p.title = this.title + " : Select Edge Types"
+				p.parentButton = button;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+/* 				p.width = sm.indexPage.width;
+				p.height = sm.indexPage.height;	 */			
+			}
+			
+			
+			/********************* controlbar operations **************************/	
+			private function save():void{				
+				if (updateLocalConfig()){
+					var event:RecommendationEvent = new RecommendationEvent(RecommendationEvent.UPDATE_REC_CONFIG);
+					event.data.config = sm.recConfigXML.toXMLString();
+					dispatcher(event);	
+				}
+			}
+			
+			private function updateLocalConfig():Boolean{
+				if (metricBox.selectedItem == null){
+					Alert.show("Please select a metric type.");
+					return false;
+				}
+				
+				var metricType:String = String(metricBox.selectedItem);
+				pair.@metric = metricType;
+				pair.@dirty = "1";
+				parentButton.label = pair.@metric;
+				gu.removeXMLChildren(pair);
+				for each (var x:XML in newPair.children()){
+					pair.appendChild(x);
+				}		
+				
+				logger.debug("Updated pair: " + pair.toXMLString());
+				return true;
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function calculate():void{
+				if (metricBox.selectedItem == null){
+					Alert.show("Please select a metric type.");
+					return;
+				}				
+				updateLocalConfig();
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.COMPUTE_RECOMMENDATIONS);
+				e.data.source = source;
+				e.data.row = String(pair.@row);
+				e.data.col = String(pair.@col);	
+				e.data.config = sm.recConfigXML.toXMLString();
+				dispatcher(e);
+				
+				p = new TextDisplayPopup();
+				gu.showPopup(p);
+				p.title = calculationTitle;
+				p.msg = calculationMessage;
+				p.imagesource = sm.baseURL + "/images/calculate.jpg";
+				p.showCloseButton(false);
+			}
+			
+			[MessageHandler(selector="computedRecommendations")]
+			public function computeHandler(event:RecommendationEvent):void{
+				var d:Object = event.data;
+				if (d.source == source && d.row == pair.@row && d.col == pair.@col) {				
+					p.msg = String(event.data.msg);
+					p.textColor = (event.data.success == "1")? 0x006400:0xff0000;
+					p.showCloseButton(true);
+				}
+			}				
+		]]>
+	</fx:Script>
+	
+	
+	<s:HGroup verticalAlign="baseline">
+		<s:Label id="metricLabel" text="Metric" fontStyle="italic" fontWeight="bold" color="blue"/>
+		<s:DropDownList id="metricBox" dataProvider="{metricTypes}"/>
+	</s:HGroup>
+	
+	<s:Spacer height="10"/>
+	
+	<mx:VBox id="vbox" width="100%" height="100%"/>
+	
+	<s:Spacer height="10"/>
+	
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="saveBtn" label="Save" click="save()"/>
+			<s:Button id="closeBtn" label="Close" click="close()"/>
+			<s:Button id="calculateBtn" label="Calculate" click="calculate()"/>
+			<s:Label id="calcLabel" fontStyle="italic"/>
+		</s:HGroup>
+	</s:controlBarContent>
+
+</s:TitleWindow>

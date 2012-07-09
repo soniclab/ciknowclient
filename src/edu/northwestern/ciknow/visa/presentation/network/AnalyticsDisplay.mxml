@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.Clique;
+			import edu.northwestern.ciknow.common.domain.ConnectedComponent;
+			import edu.northwestern.ciknow.common.domain.IndividualMetric;
+			import edu.northwestern.ciknow.common.domain.NetworkMetrics;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.LinkButton;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			
+			private static const logger:ILogger = LogUtil.getLog(AnalyticsDisplay);
+			private static const THRESHOLD:int = 100;
+			
+			[Bindable] private var individualMetrics:ArrayCollection = new ArrayCollection();
+			[Bindable] private var showDirected:Boolean = false;
+			[Bindable] private var showUndirected:Boolean = false;
+						
+			[Bindable] public var networkMetrics:NetworkMetrics = null;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			public var tooManyCliqueMessage:String = 'There are more than 100 cliques. Showing all of them may freeze your browser. Are you sure to proceed?';
+			public var tooManyComponentMessage:String = 'There are more than 100 components. Showing all of them may freeze your browser. Are you sure to proceed?';
+			public var powerLawPlot4InDegree:String = "Power Law Plot for In Degree";
+			public var powerLawPlot4OutDegree:String = "Power Law Plot for Out Degree";
+			public var powerLawPlot4Degree:String = "Power Law Plot for Degree";
+			
+			[Init]		
+			public function init():void{
+				
+			}		
+			
+			public function update():void{
+				if (networkMetrics == null) {
+					Alert.show("null network?!");
+					return;
+				}
+				
+				showDirected = networkMetrics.directed;
+				showUndirected = !networkMetrics.directed;
+				logger.debug("networkMetrics is directed: " + showDirected);
+				
+				logger.debug("preparing individual metrics...");
+				individualMetrics.removeAll();
+				for each(var im:IndividualMetric in networkMetrics.individualMetrics){	
+					individualMetrics.addItem(im);
+				}
+				
+				// power law labels				
+				var label:String = "f(X) = " + Number(Math.exp(networkMetrics.outAlpha)).toFixed(2) + " * X^" + Number(networkMetrics.outBeta).toFixed(2) + "";
+				degreePowerLawLabel.text = label;
+				outDegreePowerLawLabel.text = label;			 	
+				label = "f(X) = " + Number(Math.exp(networkMetrics.inAlpha)).toFixed(2) + " * X^" + Number(networkMetrics.inBeta).toFixed(2);
+				inDegreePowerLawLabel.text = label;
+				
+				// clique numbers
+				numClique.text = "[" + networkMetrics.cliques.length + "]";
+				numComponent.text = "[" + networkMetrics.connectedComponents.length + "]";
+				
+				logger.debug("network analytics updated.");
+			}
+			
+			
+			
+			private function getNodeName(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				//logger.debug(im.nodeId.toString());
+				
+				var node:Object = nu.getNodeById(im.nodeId);
+				if (node != null) return node.label;
+				else return String(im.nodeId);
+			}
+			
+			private function sortNodeName(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				var nodeA:Object = nu.getNodeById(itemA.nodeId);
+				var nodeB:Object = nu.getNodeById(itemB.nodeId);
+				var labelA:String = nodeA==null?String(itemA.nodeId):nodeA.label;
+				var labelB:String = nodeB==null?String(itemB.nodeId):nodeB.label;
+				
+				if (labelA.localeCompare(labelB) < 0) return -1;
+				else if (labelA.localeCompare(labelB) > 0) return 1;
+				else return 0;
+			}
+			
+			private function getBetweenness(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				return Number(im.betweenness).toFixed(2);
+			}
+			
+			private function sortBetweenness(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				if (itemA.betweenness < itemB.betweenness) return -1;
+				else if (itemA.betweenness > itemB.betweenness) return 1;
+				else return 0;
+			}
+			
+			private function getInCloseness(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				return Number(im.inCloseness)>0?Number(im.inCloseness).toFixed(2):String(Number.NaN);
+			}	
+			
+			private function sortInCloseness(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				if (itemA.inCloseness < itemB.inCloseness) return -1;
+				else if (itemA.inCloseness > itemB.inCloseness) return 1;
+				else return 0;
+			}
+			
+			private function getOutCloseness(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				return Number(im.outCloseness)>0?Number(im.outCloseness).toFixed(2):String(Number.NaN);
+			}	
+			
+			private function sortOutCloseness(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				if (itemA.outCloseness < itemB.outCloseness) return -1;
+				else if (itemA.outCloseness > itemB.outCloseness) return 1;
+				else return 0;
+			}
+			
+			private function getPageRank(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				return Number(im.pageRank).toFixed(2);
+			}	
+			
+			private function sortPageRank(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				if (itemA.pageRank < itemB.pageRank) return -1;
+				else if (itemA.pageRank > itemB.pageRank) return 1;
+				else return 0;
+			}
+			
+			private function getScanning(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				return Number(im.scanning).toFixed(2);
+			}	
+			
+			private function sortScanning(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				if (itemA.scanning < itemB.scanning) return -1;
+				else if (itemA.scanning > itemB.scanning) return 1;
+				else return 0;
+			}
+			
+			private function getClusteringCoefficient(item:Object, column:GridColumn):String{
+				var im:IndividualMetric = item as IndividualMetric;
+				return Number(im.clusteringCoefficient).toFixed(2);
+			}
+			
+			private function sortClusteringCoefficient(itemA:IndividualMetric, itemB:IndividualMetric):int{
+				if (itemA.clusteringCoefficient < itemB.clusteringCoefficient) return -1;
+				else if (itemA.clusteringCoefficient > itemB.clusteringCoefficient) return 1;
+				else return 0;
+			}		
+			
+			
+			
+			private function cliqueHandler():void{
+				logger.debug("there are " + networkMetrics.cliques.length + " cliques.");
+				if (networkMetrics.cliques.length > THRESHOLD) {
+					Alert.show(tooManyCliqueMessage, '', Alert.YES|Alert.NO, this, showCliqueHandler);
+					
+				} else showClique();				
+			}			
+			
+			private function showCliqueHandler(event:CloseEvent):void{
+				if (event.detail == Alert.NO) return;
+				showClique();
+			}			
+			
+			private function showClique():void{
+				var popup:AnalyticsDisplayCliquePopup = new AnalyticsDisplayCliquePopup();
+				gu.showPopup(popup, moduleFactory);
+				
+				var vbox:VGroup = new VGroup();	
+				var cliques:ArrayCollection = networkMetrics.cliques;					
+				for (var i:int = cliques.length; i > 0; i--){
+					var clique:Clique = cliques.getItemAt(i-1) as Clique;
+					for each(var nodeId:Number in clique.nodes){
+						var node:Object = nu.getNodeById(nodeId);
+						var btn:LinkButton = new LinkButton();
+						btn.label = (node == null)?String(nodeId):node.label ;
+						btn.data = new Object();
+						btn.data.node = node;
+						btn.addEventListener(MouseEvent.CLICK, showNode);
+						vbox.addElement(btn);
+					}
+					var seperator:Label = new Label();
+					vbox.addElement(seperator);
+					seperator.text = "#################################";	
+				} 		
+				popup.displayArea.addElement(vbox);					
+			} 
+			
+			private function showNode(e:MouseEvent):void{
+				var btn:LinkButton = LinkButton(e.target);
+				var node:Object = btn.data.node;
+				navigateToURL(new URLRequest(sm.baseURL + "/vis_get_node_info.jsp?node=" + node.nodeId));
+			}		
+			
+			private function componentHandler():void{
+				logger.debug("there are " + networkMetrics.connectedComponents.length + " components.");
+				if (networkMetrics.connectedComponents.length > THRESHOLD) {
+					Alert.show(tooManyComponentMessage, "", Alert.YES|Alert.NO, this, showComponentHandler);
+					
+				} else showComponent();				
+			}			
+			
+			private function showComponentHandler(event:CloseEvent):void{
+				if (event.detail == Alert.NO) return;
+				showComponent();
+			}			
+			
+			private function showComponent():void{
+				var popup:AnalyticsDisplayCliquePopup = new AnalyticsDisplayCliquePopup();
+				gu.showPopup(popup, moduleFactory);
+				
+				var vbox:VGroup = new VGroup();	
+				var list:ArrayCollection = networkMetrics.connectedComponents;	
+				for (var i:int = list.length; i > 0; i--){
+					var component:ConnectedComponent = list.getItemAt(i-1) as ConnectedComponent;
+					for each(var nodeId:Number in component.nodes){
+						var node:Object = nu.getNodeById(nodeId);
+						var btn:LinkButton = new LinkButton();
+						btn.label = (node == null)?String(nodeId):node.label ;
+						btn.data = new Object();
+						btn.data.node = node;
+						btn.addEventListener(MouseEvent.CLICK, showNode);
+						vbox.addElement(btn);
+					}
+					var seperator:Label = new Label();
+					vbox.addElement(seperator);
+					seperator.text = "#################################";																		
+				}
+				popup.displayArea.addElement(vbox);
+			}
+			
+			private function toggleIndegreePlot(event:MouseEvent):void{
+				var p:AnalyticsDisplayPowerPopup = new AnalyticsDisplayPowerPopup();
+				var ds:ArrayCollection = new ArrayCollection();
+				for (var degree:Number=0; degree < networkMetrics.inCounts.length; degree++){
+					var d:Object = new Object();
+					d.Degree = degree;
+					d.Count = networkMetrics.inCounts.getItemAt(degree) as Number;
+					ds.addItem(d);
+				}
+				p.ds = ds;
+				p.title = powerLawPlot4InDegree;
+				gu.showPopup(p, moduleFactory);			 									
+			}	
+			
+			private function toggleOutdegreePlot(event:MouseEvent):void{
+				var p:AnalyticsDisplayPowerPopup = new AnalyticsDisplayPowerPopup();
+				var ds:ArrayCollection = new ArrayCollection();
+				for (var degree:Number=0; degree < networkMetrics.outCounts.length; degree++){
+					var d:Object = new Object();
+					d.Degree = degree;
+					d.Count = networkMetrics.outCounts.getItemAt(degree) as Number;
+					ds.addItem(d);
+				}
+				p.ds = ds;
+				
+				var btn:Button = Button(event.target);
+				if (btn == outDegreePowerBtn) p.title = powerLawPlot4OutDegree;
+				else if (btn == degreePowerBtn) p.title = powerLawPlot4Degree;
+				
+				gu.showPopup(p, moduleFactory);		 									
+			}				
+			
+			private function selectNode(dg:DataGrid):void{
+				var im:IndividualMetric = dg.selectedItem as IndividualMetric;			
+				nu.viewNodeHtml(Number(im.nodeId));
+			}
+		]]>
+	</fx:Script>
+	
+	<s:HGroup visible="{networkMetrics != null}" width="100%">
+		<s:Form width="200" height="100%">
+			<s:FormItem id="totalNodesItem" label="TotalNodes">
+				<s:Label text="{networkMetrics.totalNodes}"/>
+			</s:FormItem>	
+			<s:FormItem id="totalEdgesItem" label="TotalEdges">
+				<s:Label text="{networkMetrics.totalEdges}"/>
+			</s:FormItem>	
+			<s:FormItem id="densityItem" label="Density">
+				<s:Label text="{networkMetrics.networkDensity.toFixed(2)}"/>
+			</s:FormItem>
+			<s:FormItem id="inDegreeItem" label="In Degree" visible="{showDirected}" includeInLayout="{showDirected}">
+				<s:Label text="{networkMetrics.networkInDegree.toFixed(2)}"/>
+			</s:FormItem>
+			<s:FormItem id="outDegreeItem" label="Out Degree" visible="{showDirected}" includeInLayout="{showDirected}">
+				<s:Label text="{networkMetrics.networkOutDegree.toFixed(2)}"/>
+			</s:FormItem>
+			<s:FormItem id="degreeItem" label="Degree" visible="{showUndirected}" includeInLayout="{showUndirected}">
+				<s:Label text="{networkMetrics.networkOutDegree.toFixed(2)}"/>
+			</s:FormItem>			
+			<s:FormItem id="inClosenessItem" label="In Closeness" visible="{showDirected}" includeInLayout="{showDirected}">
+				<s:Label text="{networkMetrics.networkInCloseness > 0?networkMetrics.networkInCloseness.toFixed(2):Number.NaN}"/>
+			</s:FormItem>	
+			<s:FormItem id="outClosenessItem" label="Out Closeness" visible="{showDirected}" includeInLayout="{showDirected}">
+				<s:Label text="{networkMetrics.networkOutCloseness > 0?networkMetrics.networkOutCloseness.toFixed(2):Number.NaN}"/>
+			</s:FormItem>	
+			<s:FormItem id="closenessItem" label="Closeness" visible="{showUndirected}" includeInLayout="{showUndirected}">
+				<s:Label text="{networkMetrics.networkOutCloseness > 0?networkMetrics.networkOutCloseness.toFixed(2):Number.NaN}"/>
+			</s:FormItem>												
+			<s:FormItem id="betweennessItem" label="Betweenness">
+				<s:Label text="{networkMetrics.networkBetweenness.toFixed(2)}"/>
+			</s:FormItem>							
+		</s:Form>	
+		
+		<s:Form width="100%" height="100%">	
+			<s:FormItem id="averageClusteringCoeffItem" label="Average Clustering Coeff.">
+				<s:Label text="{networkMetrics.networkClusteringCoefficient.toFixed(2)}"/>
+			</s:FormItem>	
+			<s:FormItem id="diameterItem" label="Diameter">
+				<s:Label text="{networkMetrics.diameter.toFixed(2)}"/>
+			</s:FormItem>	
+			<s:FormItem id="characteristicPathLengthItem" label="Characteristic Path Length">
+				<s:Label text="{networkMetrics.characteristicPathLength.toFixed(2)}"/>
+			</s:FormItem>		
+			<s:FormItem id="inDegreePowerLawItem" label="In Degree Power Law" visible="{showDirected}" includeInLayout="{showDirected}">
+				<s:HGroup verticalAlign="baseline">
+					<s:Label id="inDegreePowerLawLabel"/>
+					<s:Button id="inDegreePowerBtn" label="Show" click="toggleIndegreePlot(event)"/>
+				</s:HGroup>
+			</s:FormItem>
+			<s:FormItem id="outDegreePowerLawItem" label="Out Degree Power Law" visible="{showDirected}" includeInLayout="{showDirected}">
+				<s:HGroup verticalAlign="baseline">
+					<s:Label id="outDegreePowerLawLabel"/>
+					<s:Button id="outDegreePowerBtn" label="Show" click="toggleOutdegreePlot(event)"/>
+				</s:HGroup>
+			</s:FormItem>
+			<s:FormItem id="degreePowerLawItem" label="Degree Power Law" visible="{showUndirected}" includeInLayout="{showUndirected}">
+				<s:HGroup verticalAlign="baseline">
+					<s:Label id="degreePowerLawLabel"/>
+					<s:Button id="degreePowerBtn" label="Show" click="toggleOutdegreePlot(event)"/>					
+				</s:HGroup>
+			</s:FormItem>												
+			<s:FormItem id="cliqueItem" label="Cliques">
+				<s:HGroup verticalAlign="baseline">
+					<s:Button id="cliqueBtn" label="Show" click="cliqueHandler()"/>
+					<s:Label id="numClique"/>
+				</s:HGroup>
+			</s:FormItem>		
+			<s:FormItem id="componentItem" label="Components">
+				<s:HGroup verticalAlign="baseline">
+					<s:Button id="componentBtn" label="Show" click="componentHandler()"/>
+					<s:Label id="numComponent"/>					
+				</s:HGroup>
+			</s:FormItem>								
+		</s:Form>				
+	</s:HGroup>
+	
+	
+	<s:DataGrid id="dg1" width="100%" height="100%" dataProvider="{individualMetrics}" 
+				 visible="{showDirected}" includeInLayout="{showDirected}" 
+				 doubleClickEnabled="true" doubleClick="selectNode(dg1)">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="nameColumn" headerText="Name" labelFunction="getNodeName" sortCompareFunction="sortNodeName"/>
+				<s:GridColumn id="inDegreeColumn" headerText="InDegree" dataField="inDegree"/>
+				<s:GridColumn id="outDegreeColumn" headerText="OutDegree" dataField="outDegree"/>
+				<s:GridColumn id="inClosenessColumn" headerText="InCloseness" labelFunction="getInCloseness" sortCompareFunction="sortInCloseness"/>
+				<s:GridColumn id="outClosenessColumn" headerText="OutCloseness" labelFunction="getOutCloseness" sortCompareFunction="sortOutCloseness"/>
+				<s:GridColumn id="betweennessColumn" headerText="Betweenness" labelFunction="getBetweenness" sortCompareFunction="sortBetweenness"/>
+				<s:GridColumn id="pageRankColumn" headerText="PageRank" labelFunction="getPageRank" sortCompareFunction="sortPageRank"/>
+				<!--<s:GridColumn headerText="Scanning" labelFunction="getScanning" sortCompareFunction="sortScanning"/>-->
+				<s:GridColumn id="clusteringColumn" headerText="Clustering Coeff." labelFunction="getClusteringCoefficient" sortCompareFunction="sortClusteringCoefficient" minWidth="100"/>				
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>	
+	
+	<s:DataGrid id="dg2" width="100%" height="100%" dataProvider="{individualMetrics}" 
+				 visible="{showUndirected}" includeInLayout="{showUndirected}" 
+				 doubleClickEnabled="true" doubleClick="selectNode(dg2)">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="nameColumn2" headerText="Name" labelFunction="getNodeName" sortCompareFunction="sortNodeName"/>
+				<s:GridColumn id="degreeColumn" headerText="Degree" dataField="outDegree"/>
+				<s:GridColumn id="closenessColumn" headerText="Closeness" labelFunction="getOutCloseness" sortCompareFunction="sortOutCloseness"/>
+				<s:GridColumn id="betweennessColumn2" headerText="Betweenness" labelFunction="getBetweenness" sortCompareFunction="sortBetweenness"/>
+				<s:GridColumn id="pageRankColumn2" headerText="PageRank" labelFunction="getPageRank" sortCompareFunction="sortPageRank"/>
+				<!--<s:GridColumn headerText="Scanning" labelFunction="getScanning" sortCompareFunction="sortScanning"/>-->
+				<s:GridColumn id="clusteringColumn2" headerText="Clustering Coeff." labelFunction="getClusteringCoefficient" sortCompareFunction="sortClusteringCoefficient" minWidth="100"/>				
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>	
+</s:VGroup>

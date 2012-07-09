@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network:NetworkBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:network="edu.northwestern.ciknow.visa.presentation.network.*">
+	<fx:Declarations>
+
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.components.EdgeAttributeFilter;
+			import edu.northwestern.ciknow.common.components.NodeAttributeFilter;
+			import edu.northwestern.ciknow.common.domain.FieldDTO;
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.ScaleDTO;
+			import edu.northwestern.ciknow.common.domain.TextFieldDTO;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.logging.ILogger;
+
+			private var nodeFilterData:Object = new Object();
+			private var nodeFilterConditions:ArrayCollection = new ArrayCollection();			
+			private var edgeFilterData:Object = new Object();
+			private var edgeFilterConditions:ArrayCollection = new ArrayCollection();
+
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			[Init]
+			public override function init():void{
+				logger = LogUtil.getLog(NetworkCustom);
+				if (nu.isAdmin(sm.loginNode)) defineLargeNetworkBtn.visible = true;
+				super.init();
+			}			
+			
+			
+			// this is to ensure the edgeTypes are consistent with nodeTypes
+			private function onNodeTypeChange():void{
+				availableEdgeTypes = null;
+			}
+			
+			private function configNodeFilter():void{
+				var p:NodeAttributeFilter = new NodeAttributeFilter();
+				p.data = nodeFilterData;
+				nodeFilterData.filterConditions = nodeFilterConditions;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+			}
+			
+			private function configEdgeFilter():void{
+				var p:EdgeAttributeFilter = new EdgeAttributeFilter();
+				p.data = edgeFilterData;
+				edgeFilterData.filterConditions = edgeFilterConditions;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+			}
+			
+			// validate user input
+			public override function validate():Boolean{				
+				if (nodeTypeBox.selectedItems == null || nodeTypeBox.selectedItems.length == 0){
+					Alert.show(selectNodeTypesMessage);
+					return false;
+				}
+				
+				if (edgeTypeBox.selectedItems == null || edgeTypeBox.selectedItems.length == 0){
+					Alert.show(selectEdgeTypesMessage);
+					return false;
+				}
+				
+				return true;
+			}
+			
+			// get selected node types, which is required for subsequent VisualizationSettings.mxml
+			public override function getNodeTypes():ArrayCollection{
+				if (nodeTypeBox.selectedItems == null || nodeTypeBox.selectedItems.length == 0){
+					return null;
+				}
+				return nu.getNodeTypes(nodeTypeBox.selectedItems);
+			}
+			
+			public override function get analyticSettings():Object{
+				var d:Object = new Object();
+				d.type = Constants.NETWORK_CUSTOM;						
+				d.nodeTypes = nu.getNodeTypes(nodeTypeBox.selectedItems);
+				d.edgeTypes = eu.getEdgeTypes(edgeTypeBox.selectedItems);
+				d.operator = edgeOperator_and.selected?"and":"or";
+				d.nodeFilters = gu.getFilters(nodeFilterConditions);
+				d.nfc = nodeFilterData.hasOwnProperty("combiner")?String(nodeFilterData.combiner):"or";
+				d.edgeFilters = gu.getFilters(edgeFilterConditions);					
+				d.efc = edgeFilterData.hasOwnProperty("combiner")?String(edgeFilterData.combiner):"or";
+				d.isolate = isolateBox.selected?"1":"0";
+				d.showRawRelation = showRawBox.selected?"1":"0";
+				d.allowHugeNetwork = allowHugeNetworkBox.selected?"1":"0";
+				d.includeDerivedEdges = "1";
+				return d;
+			}
+			
+			public override function get exportSettings():URLVariables{
+				var params:URLVariables = new URLVariables();
+				params.networkType = Constants.NETWORK_CUSTOM;
+				params.nodeType = nu.getNodeTypes(nodeTypeBox.selectedItems).source;
+				params.edgeType = eu.getEdgeTypes(edgeTypeBox.selectedItems).source; // important! use the Array!
+				params.operator = edgeOperator_and.selected?"and":"or";
+				params.nodeFilter = gu.getFilters(nodeFilterConditions).source;
+				params.nfc = nodeFilterData.hasOwnProperty("combiner")?String(nodeFilterData.combiner):"or";
+				params.edgeFilter = gu.getFilters(edgeFilterConditions).source;	           			
+				params.efc = edgeFilterData.hasOwnProperty("combiner")?String(edgeFilterData.combiner):"or";
+				params.isolate = isolateBox.selected?"1":"0";
+				params.showRawRelation = showRawBox.selected?"1":"0";
+				params.allowHugeNetwork = allowHugeNetworkBox.selected?"1":"0";
+				params.includeDerivedEdges = "1";
+				
+				return params;
+			}
+			
+			public override function get url():String{
+				var s:String = "";
+				
+				var item:Object;
+				for each (item in nodeTypeBox.selectedItems){		
+					s += ("&nodeType=" + item.type);					
+				}				
+				for each (item in edgeTypeBox.selectedItems){		
+					s += ("&edgeType=" + item.type);					
+				}
+
+				s += ("&operator=" + (edgeOperator_and.selected?"and":"or"));
+				
+				s += encodeFilterConditions();
+				
+				s += ("&isolate=" + (isolateBox.selected?"1":"0"));
+				s += ("&showRawRelation=" + (showRawBox.selected?"1":"0"));				
+				s += ("&allowHugeNetwork=" + (allowHugeNetworkBox.selected?"1":"0"));
+				s += ("&includeDerivedEdges=1");
+
+				return s;
+			}
+			
+			// be careful of the method escape vs. encodeURI in ActionScript docs
+			private function encodeFilterConditions():String{
+				var c:Object;
+				var fc:String = "";
+				for each (c in nodeFilterConditions){
+					fc += "&nodeFilter=";
+					fc += gu.escapeMore(escape(c.name.name)) + "-.-";
+					fc += gu.escapeMore(escape(c.operator.name)) + "-.-";
+					fc += gu.escapeMore(escape(c.value.value)); 				
+				}
+				fc += "&nfc=";
+				fc += nodeFilterData.hasOwnProperty("combiner")?String(nodeFilterData.combiner):"or";
+				
+				for each (c in edgeFilterConditions){
+					fc += "&edgeFilter=";
+					fc += gu.escapeMore(escape(c.name.name)) + "-.-";
+					fc += gu.escapeMore(escape(c.operator.name)) + "-.-";
+					fc += gu.escapeMore(escape(c.value.value)); 		
+				}	
+				
+				fc += "&efc=";
+				fc += edgeFilterData.hasOwnProperty("combiner")?String(edgeFilterData.combiner):"or";
+				
+				return fc;
+			}			
+			
+			public override function set url(query:String):void{
+				var shortName:String = null;
+				var fieldName:String = null;	
+				var field:FieldDTO = null;		
+				var textFieldName:String = null;
+				var textField:TextFieldDTO = null;	
+				var scaleName:String = null;
+				var scale:ScaleDTO = null;
+				var questionId:String = null;
+				var question:QuestionDTO = null;
+				var condition:Object;
+				
+				var eds:Vector.<Object> = new Vector.<Object>();
+				var nds:Vector.<Object> = new Vector.<Object>();
+				var parts:Array = query.split("&");
+				for each (var part:String in parts){
+					var subparts:Array = part.split("=");
+					var key:String = subparts[0];
+					var value:String = unescape(subparts[1]);	
+					
+					logger.debug("key=" + key + ", value=" + value);
+					if (key == "nodeType"){
+						var nd:Object = nu.getNodeTypeDescription(value);
+						if (nd == null) Alert.show("Invalid: " + part);
+						else nds.push(nd);
+					} else if (key == "edgeType"){
+						var ed:Object = eu.getEdgeDescription(sm.edgeTypeDescriptions, value);
+						if (ed == null) Alert.show("Invalid: " + part);
+						else eds.push(ed);
+					} else if (key == "operator"){
+						if (value == "and") edgeOperator_and.selected = true;
+						else if (value == "or") edgeOperator_or.selected = true;
+					} else if (key == "isolate"){
+						isolateBox.selected = (value == "1" ? true : false);
+					} else if (key == "showRawRelation"){
+						showRawBox.selected = (value == "1" ? true : false);
+					} else if (key == "allowHugeNetwork"){
+						allowHugeNetworkBox.selected = (value == "1"?true:false);
+					} else if (key == "nfc"){
+						nodeFilterData.combiner = value;
+					} else if (key == "efc"){
+						edgeFilterData.combiner = value;
+					} else if (key == "nodeFilter"){
+						var nf_parts:Array = value.split("-.-");
+						var nf_name:String = nf_parts[0];
+						var nf_operator:String = nf_parts[1];
+						var nf_value:String = nf_parts[2];
+						condition = new Object();
+						condition.name = new Object();
+						condition.name.name = nf_name;
+						condition.operator = new Object();
+						condition.operator.name = nf_operator;
+						condition.operator.label = (nf_operator == "eq" ? "=" : "!="); // refer to AttributeFilter.operators
+						condition.value = new Object();
+						condition.value.value = nf_value;
+						if (nf_name.indexOf(Constants.QUESTION_PREFIX) == 0){
+							nf_name = nf_name.substring(Constants.QUESTION_PREFIX.length);
+							question = qu.getQuestionById(sm.questions, Number(nf_name));
+							if (question == null) {
+								Alert.show("cannot find question id=" + nf_name);
+								continue;
+							}
+							fieldName = qu.getFieldNameFromKey(nf_value);
+							field = qu.getFieldByName(question, fieldName);
+							if (field == null) {
+								Alert.show("cannot find field for key=" + nf_value);
+								continue;
+							}
+							condition.name.label = question.label;
+							condition.value.label = field.label; 
+						} else if (nf_name.indexOf(Constants.ATTR_PREFIX) == 0){
+							nf_name = nf_name.substring(Constants.ATTR_PREFIX.length);
+							if (nf_name.indexOf(Constants.SEPERATOR) >= 0){
+								shortName = qu.getShortNameFromKey(nf_name);
+								question = qu.getQuestionByShortName(sm.questions, shortName);
+								if (question == null) {
+									Alert.show("cannot find question from key=" + nf_name);
+									continue;
+								}
+								fieldName = qu.getFieldNameFromKey(nf_name);
+								field = qu.getFieldByName(question, fieldName);	
+								if (field == null) {
+									Alert.show("cannot find field from key=" + nf_name);
+									continue;
+								}
+								if (question.type == Constants.QUESTION_TYPE_MULTIPLE_RATING){
+									textFieldName = qu.getTextFieldNameFromKeys(nf_name);
+									logger.debug("textFieldName: " + textFieldName);
+									textField = qu.getTextFieldByName(question, textFieldName);
+									if (textField == null) {
+										Alert.show("cannot find text field from key=" + nf_name);
+										continue;
+									}
+								}		
+								var attrLabel:String = question.label;
+								if (textField != null) attrLabel += (":" + textField.label);	
+								attrLabel += (":" + field.label);
+								
+								scaleName = qu.getScaleNameFromKey(nf_value);
+								scale = qu.getScaleByName(question, scaleName);
+								if (scale == null) {
+									Alert.show("cannot find scale from key=" + nf_value);
+									continue;
+								}
+								
+								condition.name.label = attrLabel;
+								condition.value.label = question.label + ":" + scale.label;	
+							} else {
+								condition.name.label = nf_name;
+								condition.value.label = nf_value;
+							}
+						}
+						
+						nodeFilterConditions.addItem(condition);
+					} else if (key == "edgeFilter"){
+						var ef_parts:Array = value.split("-.-");
+						var ef_name:String = ef_parts[0];
+						var ef_operator:String = ef_parts[1];
+						var ef_value:String = ef_parts[2];
+						condition = new Object();
+						condition.name = new Object();
+						condition.name.name = ef_name;
+						condition.name.label = ef_name;
+						condition.operator = new Object();
+						condition.operator.name = ef_operator;
+						condition.operator.label = (ef_operator == "eq" ? "=" : "!="); // refer to EdgeAttributeFilter.operators
+						condition.value = new Object();
+						condition.value.value = ef_value;	
+						
+						if (ef_value.indexOf("S" + Constants.SEPERATOR) == 0){
+							shortName = qu.getShortNameFromKey(ef_value);
+							question = qu.getQuestionByShortName(sm.questions, shortName);
+							if (question == null) {
+								Alert.show("cannot find question from key=" + ef_value);
+								continue;
+							}
+							
+							// it must be RELATIONA RATING or RELATIONAL RATING MULTIPLE
+							scaleName = qu.getScaleNameFromKey(ef_value);
+							scale = qu.getScaleByName(question, scaleName);
+							if (scale == null) {
+								Alert.show("cannot find scale from key=" + ef_value);
+								continue;
+							}
+							condition.value.label = question.label + ":" + scale.label;
+						} else {
+							condition.value.label = ef_value;
+						}				
+						
+						edgeFilterConditions.addItem(condition);
+					}  
+				}
+				nodeTypeBox.selectedItems = nds;
+				if (availableEdgeTypes == null || availableEdgeTypes.length == 0){
+					availableEdgeTypes = sm.edgeTypeDescriptions;
+				}
+				edgeTypeBox.selectedItems = eds;
+			}
+		]]>
+	</fx:Script>
+	<s:Form width="100%" height="100%">				
+		<s:FormItem id="selectItem" label="Select Node/Edges" width="100%">
+			<s:HGroup width="100%" height="100%">
+				<s:VGroup width="100%" height="100%">
+					<s:DataGrid id="nodeTypeBox" 
+								dataProvider="{sm.nodeTypeDescriptions}" 
+								selectionMode="multipleRows" 
+								selectionChange="onNodeTypeChange()"
+								width="100%" height="100%" 
+								requestedMinRowCount="6">
+						<s:columns>
+							<s:ArrayList>
+								<s:GridColumn id="nodeTypesColumn" headerText="Node Types" dataField="label"/>
+							</s:ArrayList>
+						</s:columns>
+					</s:DataGrid>
+					<s:Button id="getEdgeTypesBtn" label="Retrieve Available Edge Types" click="getEdgeTypesAmongNodeTypes()"/>				
+				</s:VGroup>
+				
+				<s:DataGrid id="edgeTypeBox" 
+							dataProvider="{availableEdgeTypes}" 
+							selectionMode="multipleRows" 
+							width="100%" height="100%">
+					<s:columns>
+						<s:ArrayList>
+							<s:GridColumn id="edgeTypesColumn" headerText="Edge Types" dataField="label"/>
+						</s:ArrayList>
+					</s:columns>
+				</s:DataGrid>	
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="edgeOperatorItem" label="Edges Operator">
+			<s:HGroup>
+				<s:RadioButton id="edgeOperator_and" label="AND" groupName="eo"/>
+				<s:RadioButton id="edgeOperator_or" label="OR" groupName="eo" selected="true"/>
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="filterByNodeItem" label="Filtered By Node Attributes">
+			<s:Button id="nodeConfigBtn" label="Config" click="configNodeFilter()"/>
+		</s:FormItem>
+		
+		<s:FormItem id="filterByEdgeItem" label="Filtered By Edge Attributes">
+			<s:Button id="edgeConfigBtn" label="Config" click="configEdgeFilter()"/>			
+		</s:FormItem>
+		
+		<s:FormItem id="includeIsolateItem" label="Include Isolates">
+			<s:CheckBox id="isolateBox" selected="true"/>				
+		</s:FormItem>
+		
+		<s:FormItem id="showRawRelationItem" label="Show Raw Relation">
+			<s:CheckBox id="showRawBox" selected="false"/>				
+		</s:FormItem>				
+		
+		<s:FormItem id="allowLargeNetworkItem" label="Allow Large Network">
+			<s:HGroup verticalAlign="baseline">
+				<s:CheckBox id="allowHugeNetworkBox" selected="false"/>	
+				<s:Button id="defineLargeNetworkBtn" label="Define Large Network" visible="false" click="defineLimits()"/>
+			</s:HGroup>			
+		</s:FormItem>
+	</s:Form>
+</network:NetworkBase>

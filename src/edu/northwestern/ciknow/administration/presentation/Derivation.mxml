@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%"
+		  xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			[Bindable]public var prompt:String = "Please Select Derivation Technique";
+			[Bindable]public var deriveEdgesByRelation:String = "Derive Edges By Relation";
+			[Bindable]public var deriveEdgesByAttribute:String = "Derive Edges By Attribute";
+			[Bindable]public var deriveEdgesByContactChooser:String = "Derive Edges By Contact Chooser";
+			[Bindable]public var deriveEdgesBySymmetrization:String = "Derive Edges By Symmetrization";
+			[Bindable]public var deriveAttributesByProduct:String = "Derive Attributes by Product";
+			[Bindable]public var deriveAttributesByAnalytics:String = "Derive Attributes by Analytics";
+			[Bindable]public var deriveAttributesByEquation:String = "Derive Attributes by Equation";
+			[Bindable]public var deriveAttributesBySocialInfluence:String = "Derive Attributes by Social Influence";
+			[Bindable]public var deriveAttributesBySurveyProgress:String = "Derive Attributes by Survey Progress";
+			
+		]]>
+	</fx:Script>
+	<s:DropDownList id="list" prompt="{prompt}"
+					change="stacks.selectedIndex = list.selectedIndex" 
+					width="400" styleName="navigation">
+		<s:layout>
+			<s:VerticalLayout gap="0" requestedRowCount="{list.dataProvider.length}" horizontalAlign="contentJustify"/>
+		</s:layout>
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:String>{deriveEdgesByRelation}</fx:String>
+				<fx:String>{deriveEdgesByAttribute}</fx:String>
+				<fx:String>{deriveEdgesByContactChooser}</fx:String>
+				<fx:String>{deriveEdgesBySymmetrization}</fx:String>
+				<fx:String>{deriveAttributesByProduct}</fx:String>
+				<fx:String>{deriveAttributesByAnalytics}</fx:String>
+				<fx:String>{deriveAttributesByEquation}</fx:String>
+				<fx:String>{deriveAttributesBySocialInfluence}</fx:String>
+				<fx:String>{deriveAttributesBySurveyProgress}</fx:String>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	
+	<s:Spacer height="10"/>
+	
+	<mx:ViewStack id="stacks" width="100%" height="100%" 
+				  visible="{list.selectedIndex != -1}" 
+				  includeInLayout="{list.selectedIndex != -1}">
+		<s:NavigatorContent label="Derive Edges By Relation">
+			<derivation:DeriveEdgesByRelation styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Edges By Attribute">
+			<derivation:DeriveEdgesByAttribute styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Edges By Contact Chooser">
+			<derivation:DeriveEdgesByContactChooser styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Edges By Symmetrization">
+			<derivation:DeriveEdgesBySymmetrization styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Attributes by Product">
+			<derivation:DeriveAttributeByProduct styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Attributes by Analytics">
+			<derivation:DeriveAttributeByAnalytics styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Attributes by Equation">
+			<derivation:DeriveAttributeByEquation styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Attributes by Social Influence">
+			<derivation:DeriveAttributeBySocialInfluence styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Derive Attributes by Survey Progress">
+			<derivation:DeriveAttributeBySurveyProgress styleName="headlessPanel"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:VGroup>

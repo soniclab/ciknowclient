@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:presentation="edu.northwestern.ciknow.administration.presentation.*" 
+		  xmlns:node="edu.northwestern.ciknow.administration.presentation.node.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.logging.ILogger;
+			
+			private var logger:ILogger = LogUtil.getLog(NodeDetailsPanel);
+			
+		]]>
+	</fx:Script>
+	
+	<mx:TabNavigator width="100%" height="100%" styleName="innerTabNavigator">
+		<s:NavigatorContent id="infoTab" label="Basic" width="100%" height="100%">
+			<node:Info/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="addressTab" label="Address" width="100%" height="100%">
+			<node:Address/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="attributesTab" label="Attributes" width="100%" height="100%">
+			<node:Attributes/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="edgesTab" label="Edges" width="100%" height="100%">
+			<node:Edges/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="groupsTab" label="Groups" width="100%" height="100%">
+			<node:Groups/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="rolesTab" label="Roles" width="100%" height="100%">
+			<node:Roles/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+</s:VGroup>

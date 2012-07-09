@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   xmlns:parsley="http://www.spicefactory.org/parsley" 
+			   creationComplete="init()" close="close()"
+			   title="Team Assembly Results">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.FileDownload;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(TeamAssemblyResultPopup);
+			
+			[Bindable] 
+			private var strategies:ArrayCollection = new ArrayCollection(
+				[{name: "maxMinScore", label: "Maximize minimal team score"}, 
+				{name: "minVariance", label: "Minimize variance of team score"}]);
+			[Bindable] 
+			private var teams:ArrayCollection = new ArrayCollection();
+			private  var filename:String = null;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			[Inject]
+			public var fileDownload:FileDownload;
+			
+			public var results:Object = null;
+			
+			public var noTeamMessage:String = "There are no teams assembled.";
+			public var requireAttributeNameMessage:String = "Please specify attribute name used to save team assembly information.";
+			
+			private function init():void{						
+				filename = results.filename;
+				selectTeams();
+				
+				if (teams == null || teams.length == 0){
+					msg.text = noTeamMessage;
+					msg.visible = true;
+					msg.includeInLayout = true;
+					downloadBtn.visible = false;
+					downloadBtn.includeInLayout = false;
+					return;
+				} 
+				
+				logger.debug(teams.length + " teams are built.");
+				dg.visible = true;
+				dg.includeInLayout = true;
+				
+				PopUpManager.centerPopUp(this);	
+			}
+						
+			private function getLabel(item:Object, column:GridColumn):String{
+				var label:String = "";
+				var members:ArrayCollection = item.members as ArrayCollection;
+				var i:int = 0;
+				for each(var memberId:String in members){
+					var node:Object = nu.getNodeById(Number(memberId));
+					if (i==0) label += node.label;
+					else label += (", " + node.label);
+					i++;
+				}
+				return label;				
+			}
+			
+			private function selectTeams():void{
+				teams.removeAll();
+				var list:ArrayCollection = ArrayCollection(strategyBox.selectedIndex == 0? results.teamsByMaxMinScore:results.teamsByMinVariance);
+				for each (var o:Object in list){
+					var team:Object = new Object();
+					team.id = Number(o.id);
+					team.size = Number(o.size);
+					team.density = Number(o.density);
+					team.diversity = Number(o.diversity);
+					team.similarity = Number(o.similarity);
+					team.score = Number(o.score);
+					team.members = o.members;
+					teams.addItem(team);
+				}
+			}
+			
+			private function showTeam():void{
+				var team:Object = dg.selectedItem;
+				var url:String = sm.baseURL + "/teamDetails.jsp?";
+				url += ("id=" + team.id);
+				var members:ArrayCollection = ArrayCollection(team.members);
+				for each (var memberId:String in members){
+					url += ("&mid=" + memberId);
+				} 
+				
+				url += ("&numTeams=" + results.numTeams);
+				url += ("&minTeamSize=" + results.minTeamSize);
+				url += ("&maxTeamSize=" + results.maxTeamSize);
+				url += ("&iterations=" + results.iterations);
+				url += ("&diversityQuestionShortName=" + results.diversityQuestionShortName);
+				url += ("&similarityQuestionId=" + results.similarityQuestionId);
+				var groupIds:ArrayCollection = ArrayCollection(results.groupIds);
+				for each (var groupId:String in groupIds){
+					url += ("&groupId=" + groupId);
+				}
+				var edgeTypes:ArrayCollection = ArrayCollection(results.edgeTypes);
+				for each (var edgeType:String in edgeTypes){
+					url += ("&edgeType=" + edgeType);
+				}
+				
+				navigateToURL(new URLRequest(url), "_blank");
+			}
+			
+			/******************** controlBar operartions ***************************/
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function download():void{
+				if (teams == null || teams.length == 0){
+					Alert.show(noTeamMessage);
+					return;
+				}
+				
+				var ts:Array = new Array();
+				for each (var team:Object in teams){
+					var t:String = team.id;
+					var members:ArrayCollection = ArrayCollection(team.members);
+					var i:int = 0;
+					for each (var memberId:String in members){
+						if (i==0) t += ("-" + memberId);
+						else t+= ("," + memberId);
+						i++;
+					}
+					ts.push(t);
+				} 
+				
+				iu.downloadTeams(results.numTeams, 
+					results.minTeamSize, 
+					results.maxTeamSize, 
+					results.iterations,
+					results.diversityQuestionShortName,
+					results.similarityQuestionId,
+					ArrayCollection(results.groupIds).source,
+					ArrayCollection(results.edgeTypes).source,
+					ts);
+			}
+			
+			private function save4vis():void{
+				var name:String = StringUtil.trim(attrName.text);
+				if (name.length == 0) {
+					Alert.show(requireAttributeNameMessage);
+					return;
+				}
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.SAVE_TEAMS_4_VIS);
+				e.data.teams = teams;
+				e.data.name = name;
+				dispatcher(e);
+			}
+		]]>
+	</fx:Script>
+
+	
+	<s:Label id="msg" visible="false" includeInLayout="false"/>
+	
+	<s:HGroup verticalAlign="baseline">
+		<s:Label id="strategyLabel" text="Strategy:"/>
+		<s:DropDownList id="strategyBox" dataProvider="{strategies}" 
+						change="selectTeams()" selectedIndex="0" width="400"/>		
+	</s:HGroup>
+	
+	<s:DataGrid id="dg" dataProvider="{teams}" 
+				visible="false" includeInLayout="false"
+				doubleClickEnabled="true" doubleClick="showTeam()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="idColumn" headerText="#" dataField="id" width="30"/>
+				<s:GridColumn id="sizeColumn" headerText="Size" dataField="size" width="50"/>
+				<s:GridColumn id="scoreColumn" headerText="Score" dataField="score" width="50"/>
+				<s:GridColumn id="diversityColumn" headerText="Diversity" dataField="diversity" width="100"/>
+				<s:GridColumn id="similarityColumn" headerText="Similarity" dataField="similarity" width="100"/>
+				<s:GridColumn id="densityColumn" headerText="Density" dataField="density" width="100"/>
+				<s:GridColumn id="membersColumn" headerText="Members" labelFunction="getLabel"  
+							  showDataTips="true" dataTipFunction="getLabel"
+							  width="400"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="closeBtn" label="Close" click="close()"/>
+			<s:Button id="downloadBtn" label="Download" click="download()"/>
+			
+			<s:Spacer width="20"/>
+			
+			<s:Label id="attributeNameLabel" text="Name"/>
+			<s:TextInput id="attrName"/>
+			<s:Button id="saveBtn" label="Save" click="save4vis()" toolTip="Save team assembly information as node attribute."/>
+		</s:HGroup>		
+	</s:controlBarContent>
+</s:TitleWindow>

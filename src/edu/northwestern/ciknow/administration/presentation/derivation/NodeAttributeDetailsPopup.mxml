@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   close="close()" creationComplete="init()"
+			   title="Attribute Details"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.FieldDTO;
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.ScaleDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			private static const logger:ILogger = LogUtil.getLog(NodeAttributeDetailsPopup);
+			private static const SOURCE:String = logger.category;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			public var attrValueMap:Object;
+			public var attrName:String;
+			
+			[Bindable] private var values:ArrayCollection = null;
+			private var question:QuestionDTO;
+			
+			public var requiredMessage:String = "attrValueMap and attrName are required.";
+			public var distinctRatingMessage:String = "";
+			public var distinctChoiceMessage:String = "";
+			public var distinctAttributeMessage:String = "";
+			
+			private function init():void{
+				if (attrValueMap == null || attrName == null){
+					Alert.show(requiredMessage);
+					close();
+					return;
+				}
+				
+				if (!attrValueMap.hasOwnProperty(attrName)){
+					var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_ATTRIBUTE_VALUES);
+					e.data = new Object();
+					e.data.name = attrName;
+					e.data.source = SOURCE;
+					dispatcher(e);
+				} else {
+					values = attrValueMap[attrName];
+					display();	
+				}
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			[MessageHandler(selector="gotAttributeValues")]
+			public function attributeValueHandler(e:GeneralEvent):void{
+				if (e.data.source != SOURCE) return;
+				values = e.data.values as ArrayCollection;
+				values.sort = gu.getSort("label");
+				values.refresh();	
+				attrValueMap[attrName] = values;
+				
+				display();		
+			}
+			
+			private function display():void{
+				if (attrName.indexOf(Constants.ATTR_PREFIX) == 0){					
+					var name:String = attrName.substr(Constants.ATTR_PREFIX.length);
+					if (name.indexOf("F" + Constants.SEPERATOR) == 0){
+						var shortName:String = qu.getShortNameFromKey(name);
+						question = qu.getQuestionByShortName(sm.questions, shortName);
+						msg.text = distinctRatingMessage + " " + question.label;
+						ratingAttrDg.dataProvider = values;
+						ratingAttrDg.visible = true;
+						ratingAttrDg.includeInLayout = true;						
+					} else {
+						msg.text = distinctAttributeMessage + " " + name;
+						attrDg.dataProvider = values;
+						attrDg.visible = true;
+						attrDg.includeInLayout = true;						
+					}
+				} else if (attrName.indexOf(Constants.QUESTION_PREFIX) == 0){
+					var qid:String = attrName.substring(Constants.QUESTION_PREFIX.length);
+					question = qu.getQuestionById(sm.questions, Number(qid));
+					msg.text = distinctChoiceMessage + " " + question.label;
+					choiceAttrDg.dataProvider = values;
+					choiceAttrDg.visible = true;
+					choiceAttrDg.includeInLayout = true;
+				}
+			}
+			
+			private function showChoiceValue():void{
+				var item:Object = choiceAttrDg.selectedItem;
+				if (item.hasOwnProperty("calcValue")) calcValue.text = item.calcValue;
+				else {
+					var fieldName:String = qu.getFieldNameFromKey(item.value);
+					var field:FieldDTO = qu.getFieldByName(question, fieldName);
+					//calcValue.text = String(field.sequenceNumber);
+					calcValue.text = "0"; // TODO
+				}
+				calcValue.editable = true;
+				updateBtn.visible = true;					
+			}
+			
+			private function showRatingValue():void{
+				var item:Object = ratingAttrDg.selectedItem;
+				var scaleName:String = qu.getScaleNameFromKey(item.value);
+				var scale:ScaleDTO = qu.getScaleByName(question, scaleName);
+				calcValue.text = String(scale.value);
+				calcValue.editable = false;
+				updateBtn.visible = false;			
+			}
+			
+			private function showAttrValue():void{
+				var item:Object = attrDg.selectedItem;
+				calcValue.text = String(item.label);
+				calcValue.editable = false;
+				updateBtn.visible = false;					
+			}
+			
+			private function updateCalcValue():void{
+				var item:Object = choiceAttrDg.selectedItem;
+				item.calcValue = StringUtil.trim(calcValue.text);
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+
+		]]>
+	</fx:Script>
+	
+	<s:Label id="msg" width="380"/>
+	
+	<mx:Form width="400" height="100%">
+		<mx:FormItem id="attributeValuesItem" label="Attribute Values" width="100%" height="100%">
+			<mx:DataGrid id="choiceAttrDg" 
+						 width="100%" height="100%" 
+						 visible="false" includeInLayout="false" 
+						 change="showChoiceValue()" 
+						 rowCount="7">
+				<mx:columns>			
+					<mx:DataGridColumn dataField="label"/>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:DataGrid id="ratingAttrDg" 
+						 width="100%" height="100%" 
+						 visible="false" includeInLayout="false" 
+						 change="showRatingValue()"
+						 rowCount="7">
+				<mx:columns>
+					<mx:DataGridColumn dataField="label"/>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:DataGrid id="attrDg" 
+						 width="100%" height="100%" 
+						 visible="false" includeInLayout="false" 
+						 change="showAttrValue()"
+						 rowCount="7">
+				<mx:columns>
+					<mx:DataGridColumn dataField="label"/>
+				</mx:columns>
+			</mx:DataGrid>			
+		</mx:FormItem>
+		<mx:FormItem id="assignedValueItem" label="Assigned Value" direction="horizontal">
+			<mx:TextInput id="calcValue" width="100" editable="false"/>
+			<mx:Button id="updateBtn" label="Update" click="updateCalcValue()" visible="false"/>
+		</mx:FormItem>
+	</mx:Form>
+	
+	<s:controlBarContent>
+		<mx:Button id="closeBtn" label="Close" click="close()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

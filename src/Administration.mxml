@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:spicefactory="http://www.spicefactory.org/parsley" 
+		 width="100%" height="100%" resize="onResize()" 
+		 xmlns:map="edu.northwestern.ciknow.administration.l10n.map.*" 
+		 xmlns:presentation="edu.northwestern.ciknow.administration.presentation.*" 
+		 xmlns:cairngorm="http://ns.adobe.com/cairngorm">
+	<fx:Style source="admin.css"/>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.administration.AdministrationContext;
+			import edu.northwestern.ciknow.administration.presentation.Derivation;
+			import edu.northwestern.ciknow.administration.presentation.ImportExport;
+			import edu.northwestern.ciknow.administration.presentation.Labels;
+			import edu.northwestern.ciknow.administration.presentation.Membership;
+			import edu.northwestern.ciknow.administration.presentation.More;
+			import edu.northwestern.ciknow.administration.presentation.Node;
+			import edu.northwestern.ciknow.administration.presentation.Password;
+			import edu.northwestern.ciknow.administration.presentation.Preferences;
+			import edu.northwestern.ciknow.administration.presentation.Recommender;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.controls.Alert;
+			import mx.core.INavigatorContent;
+			import mx.core.UIComponent;
+			import mx.events.BrowserChangeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.managers.IBrowserManager;
+			import mx.utils.URLUtil;
+			
+			import org.spicefactory.parsley.core.messaging.ErrorPolicy;
+			
+			import spark.components.NavigatorContent;
+			import spark.components.supportClasses.SkinnableComponent;
+			
+			private var logger:ILogger;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject] public var sm:SharedModel;
+			
+			[Inject] public var nu:NodeUtil;
+			
+			[Init] public function init():void{
+				Log.addTarget(traceTarget);
+				logger = Log.getLogger("AdministrationModule.mxml");
+				logger.info("init administration module");
+				
+				var isAdmin:Boolean = nu.isAdmin(sm.loginNode);
+				//isAdmin = false; // for testing only
+				if (!isAdmin){
+					tabs.removeChild(preferencesTab);
+					tabs.removeChild(nodesTab);
+					tabs.removeChild(labelsTab);
+					tabs.removeChild(derivationTab);
+					tabs.removeChild(importExportTab);
+					tabs.removeChild(recommenderTab);
+					tabs.removeChild(membershipTab);
+					tabs.removeChild(moreTab);
+					
+					// don't need to handler browser management because there is only one tab: password
+					return; 
+				}
+				
+				sm.bm.addEventListener(BrowserChangeEvent.BROWSER_URL_CHANGE, onBrowserURLChange);
+				setTabByBrowser();
+			}
+			
+			// add spark component to tabNavigator
+			private function addTab(name:String, label:String, c:UIComponent):void{
+				var nc:NavigatorContent = new NavigatorContent();
+				nc.id = name;
+				nc.label = label;
+				nc.addElement(c);
+				tabs.addChild(nc);
+			}
+			
+			private function onTabChange():void{
+				var fo:Object = {};
+				fo.m = Constants.M_ADMINISTRATION;
+				var tab:INavigatorContent = tabs.selectedChild;				
+				if (tab == preferencesTab){
+					fo.t = Constants.T_PREFERENCES;
+				} else if (tab == nodesTab){
+					fo.t = Constants.T_NODES;
+				} else if (tab == labelsTab){
+					fo.t = Constants.T_LABELS;
+				} else if (tab == derivationTab){
+					fo.t = Constants.T_DERIVATION;
+				} else if (tab == importExportTab){
+					fo.t = Constants.T_IMPORTEXPORT;
+				} else if (tab == recommenderTab){
+					fo.t = Constants.T_RECOMMENDATION;
+				} else if (tab == membershipTab){
+					fo.t = Constants.T_MEMBERSHIP;
+				}/* else if (tab == passwordTab){
+					fo.t = Constants.T_PASSWORD;
+				}*/ else if (tab == moreTab){
+					fo.t = Constants.T_MORE;
+				} 
+				sm.bm.setFragment(URLUtil.objectToString(fo, "&"));
+				sm.bm.setTitle("C-IKNOW: Administration :: " + tab.label);
+			}
+			
+			private function onBrowserURLChange(e:BrowserChangeEvent):void{
+				setTabByBrowser();
+			}
+			
+			private function setTabByBrowser():void{
+				var f:String = sm.bm.fragment;
+				logger.info("Fragment: " + f);
+				
+				var fo:Object;
+				fo = URLUtil.stringToObject(f, "&");
+				if (fo.m != Constants.M_ADMINISTRATION) return;
+				
+				var t:String = String(fo.t);
+				switch (t){
+					case Constants.T_PREFERENCES: tabs.selectedChild = preferencesTab; break;
+					case Constants.T_NODES: tabs.selectedChild = nodesTab; break;
+					case Constants.T_LABELS: tabs.selectedChild = labelsTab; break;
+					case Constants.T_DERIVATION: tabs.selectedChild = derivationTab; break;
+					case Constants.T_IMPORTEXPORT: tabs.selectedChild = importExportTab; break;
+					case Constants.T_RECOMMENDATION: tabs.selectedChild = recommenderTab; break;						
+					case Constants.T_MEMBERSHIP: tabs.selectedChild = membershipTab; break;
+					//case Constants.T_PASSWORD: tabs.selectedChild = passwordTab; break;
+					case Constants.T_MORE: tabs.selectedChild = moreTab; break;
+					default: {	
+						tabs.selectedChild = preferencesTab;
+						
+						fo = {};
+						fo.m = Constants.M_ADMINISTRATION;
+						fo.t = Constants.T_PREFERENCES;
+						f = URLUtil.objectToString(fo, "&");
+						sm.bm.setFragment(f);
+						logger.info("Updated fragment: " + f);
+					}
+				}		
+			}
+			
+			private function onResize():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.RESIZE);
+				e.data.width = this.width;
+				e.data.height = this.height;
+				
+				sm.mainPageHeight = this.height;
+				sm.mainPageWidth = this.width;
+				
+				dispatcher(e);
+			}			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<spicefactory:ContextBuilder>
+			<cairngorm:CairngormIntegrationSupport/>
+			<spicefactory:FlexConfig type="{AdministrationContext}"/>
+			<spicefactory:MessageSettings unhandledErrors="{ErrorPolicy.RETHROW}"/>
+		</spicefactory:ContextBuilder>
+		
+		<spicefactory:Configure/>
+		
+		<s:TraceTarget id="traceTarget" 
+					   level="{ LogEventLevel.DEBUG }"
+					   includeLevel="true" 
+					   includeCategory="true" 
+					   includeDate="true" 
+					   includeTime="true">
+			<s:filters>
+				<fx:Array>
+					<fx:String>AdministrationModule.mxml</fx:String>
+					<fx:String>edu.northwestern.ciknow.administration.presentation.*</fx:String>
+					<!--<fx:String>edu.northwestern.ciknow.administration.presentation.node.*</fx:String>-->
+					<fx:String>edu.northwestern.ciknow.administration.presentation.derivation.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.administration.controller.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.common.components.*</fx:String>
+				</fx:Array>
+			</s:filters>
+		</s:TraceTarget>
+		
+		<map:LocalizationMap/>
+	</fx:Declarations>
+	
+	<mx:TabNavigator id="tabs" width="100%" height="100%" change="onTabChange()">
+		<s:NavigatorContent id="preferencesTab" label="Preferences">
+			<presentation:Preferences/>			
+		</s:NavigatorContent>
+		<s:NavigatorContent id="nodesTab" label="Nodes">
+			<presentation:Node/>			
+		</s:NavigatorContent>
+		<s:NavigatorContent id="labelsTab" label="Labels">
+			<presentation:Labels/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="derivationTab" label="Derivation">
+			<presentation:Derivation/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="importExportTab" label="Import/Export">
+			<presentation:ImportExport/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="recommenderTab" label="Recommender">
+			<presentation:Recommender/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="membershipTab" label="Membership">
+			<presentation:Membership/>
+		</s:NavigatorContent>
+<!--		<s:NavigatorContent id="passwordTab" label="Password">
+			<presentation:Password/>
+		</s:NavigatorContent>-->
+		<s:NavigatorContent id="moreTab" label="More">
+			<presentation:More/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+</s:Group>

@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   xmlns:components="edu.northwestern.ciknow.common.components.*"
+			   title="Create Node" 
+			   creationComplete="init()" close="close()"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.GroupDTO;
+			import edu.northwestern.ciknow.common.domain.NodeDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.domain.SurveyDTO;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GroupUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			private static const logger:ILogger = LogUtil.getLog(NodeCreatePopup);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			[Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			[Bindable]
+			public var pm:NodePM;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var gu:GroupUtil;
+			
+			[Bindable]
+			private var currentGroupIds:ArrayCollection = new ArrayCollection();
+			
+			
+			// node properties
+			private var username:String;
+			private var nodeType:String;
+ 			
+			public function init():void{
+				logger.debug("init createNodePopup");
+				predefinedBtn.selected = true;
+				typeBox.selectedItem = nu.getNodeTypeDescription(Constants.NODE_TYPE_USER);									
+				
+				// every node is in ALL group
+				var g:GroupDTO = gu.getGroupByName(Constants.GROUP_ALL);
+				if (!currentGroupIds.contains(g.groupId)) currentGroupIds.addItem(g.groupId);				
+
+				setPredefinedType(); 	
+				
+				selectGroups.allGroupsDg.requestedRowCount = 12;
+				selectGroups.currentGroupsDg.requestedColumnCount = 12;
+				selectGroups.currentGroupsDg.width = 150;
+				selectGroups.allGroupsDg.width = 150;
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function tryCreateAndClose():void{
+				// validate username
+				username = StringUtil.trim(usernameTi.text);
+				if (!nu.isUsernameValid(username)) return;			
+				
+				// get type
+				nodeType = "";
+				if (predefinedBtn.selected) nodeType = String(typeBox.selectedItem.type);
+				else {
+					nodeType = StringUtil.trim(typeInput.text);
+					var ntd:Object = nu.getNodeTypeDescription(nodeType);
+					if (ntd != null){
+						Alert.show("Please use predefined node type.");
+						typeBox.selectedItem = ntd;
+						predefinedBtn.selected = true;
+						
+						return;
+					}
+				}
+				if (nodeType.length == 0){
+					Alert.show("Please specify node type.");
+					return;
+				}
+				
+				// check required field
+				if (nodeType == Constants.NODE_TYPE_USER){
+					if (firstNameTi.text == "" || lastNameTi.text == "") {
+						Alert.show("firstName and lastName are required fields.");
+						return;
+					}
+				} else {
+					if (labelTi.text == ""){
+						Alert.show("label is required.");
+						return;
+					}
+				}
+				
+				
+				createAndClose();
+			}
+			
+			private function createAndClose():void{					
+				var node:NodeDTO = new NodeDTO();				
+				node.username = username;
+				node.type = nodeType;
+				node.label = StringUtil.trim(labelTi.text);
+				node.password = "random string generated in server"; 				
+				node.firstName = (nodeType == Constants.NODE_TYPE_USER)?StringUtil.trim(firstNameTi.text):"";
+				node.lastName = (nodeType == Constants.NODE_TYPE_USER)?StringUtil.trim(lastNameTi.text):"";
+				node.midName = (nodeType == Constants.NODE_TYPE_USER)?StringUtil.trim(midNameTi.text):"";
+				
+				node.addr1 = "";
+				node.addr2 = "";
+				node.city = "";
+				node.state = "";
+				node.country = "";
+				node.zipcode = "";
+				
+				node.email = "";
+				node.phone = "";
+				node.cell = "";
+				node.fax = "";
+				
+				node.department = "";
+				node.organization = "";
+				node.unit = "";	
+
+				node.enabled = true;				
+				
+
+				node.uri = "-";					
+				node.attributes[Constants.NODE_LOGIN_MODE] = sm.currentSurvey.attributes[Constants.SURVEY_DEFAULT_LOGIN_MODE];					
+				
+				// Default group/role will be set in servers, see NodeRO.java
+				// Here additional groups may be selected
+				node.groups = currentGroupIds;
+								
+				// request
+				var event:NodeEvent = new NodeEvent(NodeEvent.CREATE_NODE);
+				event.data = node;
+				dispatcher(event); 
+				
+				close();					
+			}
+			
+			private function onNameChange():void{				
+				labelTi.text = lastNameTi.text + ", " + firstNameTi.text;
+			}	
+			
+			public function setPredefinedType():void{	
+				logger.debug("setPredefinedType");		
+				
+				// set group based node type
+				removeNodeTypeGroup();
+				var groupName:String;
+				var type:String = String(typeBox.selectedItem.type);
+				if (type == Constants.NODE_TYPE_USER) groupName = Constants.GROUP_USER;
+				else groupName = Constants.GROUP_NODE_TYPE_PREFIX + type;
+				var g:GroupDTO = gu.getGroupByName(groupName);	
+				if (g == null){
+					Alert.show("Cannot find group: " + groupName);
+				} else {
+					currentGroupIds.addItem(g.groupId);
+				}
+				selectGroups.init();	
+				
+				// show/hide UI based on node type
+				if (type != Constants.NODE_TYPE_USER){
+					fnItem.visible = false;
+					fnItem.includeInLayout = false;
+					lnItem.visible = false;
+					lnItem.includeInLayout = false;
+					mnItem.visible = false;
+					mnItem.includeInLayout = false;										
+				} else {
+					fnItem.visible = true;
+					fnItem.includeInLayout = true;
+					lnItem.visible = true;
+					lnItem.includeInLayout = true;
+					mnItem.visible = true;
+					mnItem.includeInLayout = true;									
+				}
+				
+				predefinedBtn.selected = true;
+			}
+			
+			public function setCustomType():void{
+				logger.debug("setCustomType");
+				
+				removeNodeTypeGroup();	
+				selectGroups.init();	
+								
+				fnItem.visible = false;
+				fnItem.includeInLayout = false;
+				lnItem.visible = false;
+				lnItem.includeInLayout = false;
+				mnItem.visible = false;
+				mnItem.includeInLayout = false;	
+				
+				customBtn.selected = true;												
+			}
+			
+			private function removeNodeTypeGroup():void{
+				var index:Number = 0;
+				for each (var groupId:Number in currentGroupIds){
+					var g:GroupDTO = gu.getGroupById(groupId);
+					if (g.name.indexOf(Constants.GROUP_NODE_TYPE_PREFIX) >= 0) break;
+					if (g.name.indexOf(Constants.GROUP_USER) >= 0) break;
+					index++;
+				}
+				
+				if (index < currentGroupIds.length){
+					currentGroupIds.removeItemAt(index);
+				}
+			}
+			
+ 			private function close():void{
+				PopUpManager.removePopUp(this);
+			} 
+
+		]]>
+	</fx:Script>
+	
+	<s:HGroup>
+		<s:VGroup>
+			<s:Form height="100%">
+				<s:FormItem label="Username" required="true">
+					<s:TextInput id="usernameTi"/>
+					<s:Button label="Check Availability" click="pm.checkUsernameAvailability(StringUtil.trim(usernameTi.text))"/>
+				</s:FormItem>		
+				
+				<s:FormItem label="type">
+					<s:HGroup>
+						<s:RadioButton id="predefinedBtn" groupName="t" click="setPredefinedType()"/>
+						<s:DropDownList id="typeBox" dataProvider="{sm.nodeTypeDescriptions}" 
+									labelField="label" change="setPredefinedType()"/>				
+					</s:HGroup>
+					<s:HGroup>
+						<s:RadioButton id="customBtn" groupName="t" click="setCustomType()"/>
+						<s:TextInput id="typeInput" focusIn="setCustomType()"/>				
+					</s:HGroup>
+					
+				</s:FormItem>			
+				<s:FormItem id="fnItem" label="firstName(*)">
+					<s:TextInput id="firstNameTi" change="onNameChange()"/>
+				</s:FormItem>		
+				<s:FormItem id="lnItem" label="lastName(*)">
+					<s:TextInput id="lastNameTi" change="onNameChange()"/>
+				</s:FormItem>		
+				<s:FormItem id="mnItem" label="midName">
+					<s:TextInput id="midNameTi" change="onNameChange()"/>
+				</s:FormItem>		
+				<s:FormItem label="label(*)">
+					<s:TextInput id="labelTi"/>
+				</s:FormItem>	
+			</s:Form>
+				
+			<s:Label text="* required and must be unique."/>	
+			<s:Label text="- Username cannot be empty."/>
+			<s:Label text="- Username cannot be longer than 50 characters."/>
+			<s:Label text='- Username cannot contain special characters: &lt; &gt; / \ " ? : | * , ` or space.'/>
+			<s:Label text="- Username cannot be duplicate with existing usernames."/>
+		</s:VGroup>
+		<s:VGroup>
+			<s:Label text="Select Group(s) For New Node:" 
+					 fontSize="15" color="navy" 
+					 fontStyle="italic" fontWeight="bold"/>
+			<components:SelectGroups id="selectGroups" currentGroupIds="{currentGroupIds}"/>
+		</s:VGroup>
+	</s:HGroup>
+	
+	<s:controlBarContent>
+		<s:Button label="Create" click="tryCreateAndClose()"/>
+		<s:Button label="Cancel" click="close()"/>	
+	</s:controlBarContent>
+</s:TitleWindow>

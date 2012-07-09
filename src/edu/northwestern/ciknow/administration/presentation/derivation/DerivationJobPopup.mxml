@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow 		
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	title="Job Settings" close="close()" creationComplete="init()"
+	xmlns:parsley="http://www.spicefactory.org/parsley" >
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.JobDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(DerivationJobPopup);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Bindable] public var derivationType:String = null;
+			public var job:JobDTO = null;
+			
+			public var requireNameMessage:String = "Name is required.";
+			public var requireDescriptionMessage:String = "Description is required.";
+			
+			public function init():void{
+				if (derivationType == null) {
+					Alert.show("Invalid derivationType!");
+					close();
+					return;
+				}
+				
+				if (job == null) {
+					runOnceBtn.selected = true;
+					recurringBtn.selected = false;
+				} else {
+					runOnceBtn.selected = false;
+					recurringBtn.selected = true;
+					nameTi.text = job.name;
+					descriptionTi.text = job.description;
+					for each (var s:Object in sm.JOB_SCHEDULES){
+						if (s.name == job.scheduledRuntime){
+							schedule.selectedItem = s;
+						}
+					}
+					enabledJob.selected = job.enabled;
+				}
+				
+				PopUpManager.centerPopUp(this);
+			} 
+			
+			private function save():void{
+				if (runOnceBtn.selected) {
+					job = null;
+				}
+				else {
+					var name:String = StringUtil.trim(nameTi.text);
+					if (name == null || name.length == 0){
+						Alert.show(requireNameMessage);
+						return;
+					}
+					
+					var description:String = StringUtil.trim(descriptionTi.text);
+					if (description == null || description.length == 0){
+						Alert.show(requireDescriptionMessage);
+						return;
+					}
+					
+					job = new JobDTO();
+					job.name = name;
+					job.description = description;
+					job.creator = creator.text;
+					job.type = type.text;
+					job.scheduledRuntime = String(schedule.selectedItem.name);
+					job.enabled = enabledJob.selected;	
+				}
+				
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.CONFIG_JOB_SETTINGS);
+				e.data.derivationType = derivationType;
+				e.data.job = job;
+				dispatcher(e);	
+				
+				close();
+			}
+			
+			private function close():void{				
+				PopUpManager.removePopUp(this);
+			}		
+		]]>
+	</fx:Script>
+	
+	<s:VGroup>
+		<s:RadioButton id="runOnceBtn" groupName="a" label="Run It Once"/>
+		<s:RadioButton id="recurringBtn" groupName="a" label="Schedule A Recurring Task"/>
+	</s:VGroup>
+
+	<s:Form id="jobForm" width="100%" height="100%" 
+			visible="{recurringBtn.selected}" 
+			includeInLayout="{recurringBtn.selected}">
+		<s:FormItem id="nameItem" label="Name">
+			<s:TextInput id="nameTi"/>
+		</s:FormItem>
+		<s:FormItem id="typeItem" label="Type">
+			<s:Label id="type" text="{derivationType}"/>
+		</s:FormItem>
+		<s:FormItem id="descriptionItem" label="Description">
+			<s:TextInput id="descriptionTi"/>
+		</s:FormItem>
+		<s:FormItem id="creatorItem" label="Creator">
+			<s:Label id="creator" text="{sm.loginNode.username}"/>
+		</s:FormItem>
+		<s:FormItem id="scheduleItem" label="Schedule">
+			<s:DropDownList id="schedule" dataProvider="{sm.JOB_SCHEDULES}" selectedIndex="3"/>
+		</s:FormItem>
+		<s:FormItem id="enabledItem" label="Enabled">
+			<s:CheckBox id="enabledJob" selected="true"/>
+		</s:FormItem>
+	</s:Form>
+	
+	<s:controlBarContent>
+		<s:Button id="saveBtn" label="Save" click="save()"/>
+		<s:Button id="closeBtn" label="Close" click="close()"/>	
+	</s:controlBarContent>
+
+</s:TitleWindow>

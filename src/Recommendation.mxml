@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 		   
+		 width="100%" height="100%" resize="onResize()"
+		 xmlns:map="edu.northwestern.ciknow.recommendation.l10n.map.*" 
+		 xmlns:presentation="edu.northwestern.ciknow.recommendation.presentation.*" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Style source="recommender.css"/>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.recommendation.RecommendationContext;
+			
+			import mx.core.INavigatorContent;
+			import mx.events.BrowserChangeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.managers.BrowserManager;
+			import mx.utils.URLUtil;
+			
+			import org.spicefactory.parsley.core.messaging.ErrorPolicy;
+			
+			private var logger:ILogger;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Init]
+			public function init():void{
+				Log.addTarget(traceTarget);
+				logger = Log.getLogger("RecommendationModule.mxml");
+				logger.info("init recommendation module");
+				
+				sm.bm.addEventListener(BrowserChangeEvent.BROWSER_URL_CHANGE, onBrowserURLChange);
+				setTabByBrowser();
+			}
+			
+			private function onTabChange():void{
+				var fo:Object = {};
+				fo.m = Constants.M_RECOMMENDATION;
+				var tab:INavigatorContent = tabs.selectedChild;
+				if (tab == resourceTab){
+					fo.t = Constants.T_PULLRECOMMENDER;
+				} else if (tab == teamTab){
+					fo.t = Constants.T_TEAMASSEMBLY;
+				} 
+				sm.bm.setFragment(URLUtil.objectToString(fo, "&"));
+				sm.bm.setTitle("C-IKNOW: Report :: " + tab.label);
+			}
+			
+			private function onBrowserURLChange(e:BrowserChangeEvent):void{
+				setTabByBrowser();
+			}
+			
+			private function setTabByBrowser():void{
+				var f:String = sm.bm.fragment;
+				logger.info("Fragment: " + f);
+				
+				var fo:Object;
+				fo = URLUtil.stringToObject(f, "&");
+				if (fo.m != Constants.M_RECOMMENDATION) return;
+				
+				var t:String = String(fo.t);
+				switch (t){
+					case Constants.T_PULLRECOMMENDER: tabs.selectedChild = resourceTab; break;
+					case Constants.T_TEAMASSEMBLY: tabs.selectedChild = teamTab; break;						
+					default: {	
+						tabs.selectedChild = resourceTab;
+						
+						fo = {};
+						fo.m = Constants.M_RECOMMENDATION;
+						fo.t = Constants.T_PULLRECOMMENDER;
+						f = URLUtil.objectToString(fo, "&");
+						sm.bm.setFragment(f);
+						logger.info("Updated fragment: " + f);
+					}
+				}
+			}
+			
+			
+			private function onResize():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.RESIZE);
+				e.data.width = this.width;
+				e.data.height = this.height;
+				
+				sm.mainPageHeight = this.height;
+				sm.mainPageWidth = this.width;
+				
+				dispatcher(e);
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<parsley:ContextBuilder>
+			<parsley:FlexConfig type="{RecommendationContext}"/>
+			<parsley:MessageSettings unhandledErrors="{ErrorPolicy.RETHROW}"/>
+		</parsley:ContextBuilder>
+		
+		<parsley:Configure/>
+		
+		<s:TraceTarget id="traceTarget" 
+					   level="{ LogEventLevel.DEBUG }"
+					   includeLevel="true" 
+					   includeCategory="true" 
+					   includeDate="true" 
+					   includeTime="true">
+			<s:filters>
+				<fx:Array>
+					<fx:String>RecommendationModule.mxml</fx:String>
+					<fx:String>edu.northwestern.ciknow.recommendation.presentation.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.recommendation.presentation.mahout.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.recommendation.presentation.popup.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.recommendation.presentation.renderer.*</fx:String>
+				</fx:Array>
+			</s:filters>
+		</s:TraceTarget>
+		
+		<map:LocalizationMap/>
+	</fx:Declarations>
+	
+	<!--<s:Label id="title" text="Recommendation Module"/>-->
+	<mx:TabNavigator id="tabs" width="100%" height="100%" change="onTabChange()">
+		<s:NavigatorContent id="resourceTab" label="Resources">
+			<presentation:PullRecommender/> 			
+		</s:NavigatorContent>
+		<s:NavigatorContent id="teamTab" label="Team">
+			<presentation:TeamAssembly/>		
+		</s:NavigatorContent>
+		<s:NavigatorContent id="mahoutTab" label="Mahout">
+			<presentation:Mahout/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+</s:Group>

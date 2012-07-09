@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				title="Edge Attributes Filter" 
+				styleName="generalPopup" 
+				close="close()" creationComplete="init()"
+				xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[			
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			
+			private static var logger:ILogger = LogUtil.getLog(EdgeAttributeFilter);
+			
+			private const SOURCE:String = logger.category;
+			
+			[Bindable] private var attributes:ArrayCollection;
+			[Bindable] private var operators:ArrayCollection = new ArrayCollection(
+				[{name:"eq", label:"="}, 
+				{name:"neq", label:"!="}/* , 
+				{name:"gt", label:">"},
+				{name:"lt", label:"<"} */]);
+			[Bindable] private var values:ArrayCollection;
+			[Bindable] private var filterConditions:ArrayCollection = new ArrayCollection();
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			public var data:Object;
+			
+			public var selectAttributeNameMessage:String = "Please select attribute name.";
+			public var selectAttributeOperatorMessage:String = "Please select operator.";
+			public var selectAttributeValueMessage:String = "Please select attribute value.";
+			public var selectFilterConditionMessage:String = "Please select filter condition.";
+			
+			public function init():void{	
+				if (data.hasOwnProperty("filterConditions")) filterConditions = ArrayCollection(this.data["filterConditions"]);
+				var combiner:String = "or";	
+				if (data.hasOwnProperty("combiner")) combiner = String(this.data["combiner"]);
+				if (combiner == "and"){
+					combiner_and.selected = true;
+				} else {
+					combiner_or.selected = true;
+				}
+				
+				PopUpManager.centerPopUp(this);
+
+				logger.debug("existing filters: " + filterConditions.length);
+			}			
+
+			
+			private function getFilterableAttributes():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_EDGE_COLOR_ATTRIBUTES);
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotEdgeColorAttributes")]
+			public function filterAttributeHandler(e:GeneralEvent):void{
+				attributes = ArrayCollection(e.data);
+				attributes.sort = gu.getSort("label");
+				attributes.refresh();	
+				if (attributes != null && attributes.length > 0) {	
+					attrBox.selectedIndex = 0;
+					getAttributeValues(attributes.getItemAt(0).name);
+				}				
+			}
+			
+			private function getAttributeValues(name:String):void{
+				if (name == null || name == "") {
+					return;
+				}
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_EDGE_ATTRIBUTE_VALUES);
+				e.data = new Object();
+				e.data.name = name;
+				e.data.source = SOURCE;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotEdgeAttributeValues")]
+			public function attributeValueHandler(e:GeneralEvent):void{
+				var source:String = e.data.source;
+				if (source != SOURCE) return;
+				values = e.data.values as ArrayCollection;
+				values.sort = gu.getSort("label");
+				values.refresh();				
+			}
+			
+			private function addCondition():void{
+				if (attrBox.selectedItem == null) {
+					Alert.show(selectAttributeNameMessage);
+					return;
+				}
+				if (operatorBox.selectedItem == null) {
+					Alert.show(selectAttributeOperatorMessage);
+					return;
+				}
+				if (valueBox.selectedItem == null) {
+					Alert.show(selectAttributeValueMessage);
+					return;
+				}
+				var c:Object = new Object();
+				c.name = attrBox.selectedItem;
+				c.operator = operatorBox.selectedItem;
+				c.value = valueBox.selectedItem;
+				filterConditions.addItem(c);
+			}
+			
+			private function removeCondition():void{
+				var c:Object = conditions.selectedItem;
+				if (c != null) filterConditions.removeItemAt(filterConditions.getItemIndex(c));
+				else Alert.show(selectFilterConditionMessage);
+			}
+			
+			private function getAttrLabel(item:Object, column:GridColumn):String{
+				return item.name.label;				
+			}
+			
+			private function getOperatorLabel(item:Object, column:GridColumn):String{
+				return item.operator.label;				
+			}
+			
+			private function getValueLabel(item:Object, column:GridColumn):String{
+				return item.value.label;				
+			}	
+			
+			private function close():void{
+				data["filterConditions"] = filterConditions;
+				data["combiner"] = combiner_and.selected?"and":"or";
+				//dispatchEvent(new CloseEvent(CloseEvent.CLOSE));
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="nameItem" label="Filterable Attributes">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="attrBox" dataProvider="{attributes}" 
+								labelField="label" maxWidth="900" 
+								change="getAttributeValues(attrBox.selectedItem.name)"/>
+				<s:Button id="getAttributeBtn" label="Retrieve" click="getFilterableAttributes()"/>
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="operatorItem" label="Operator">
+			<s:DropDownList id="operatorBox" dataProvider="{operators}" labelField="label"/>
+		</s:FormItem>
+		
+		<s:FormItem id="valueItem" label="Value">
+			<s:DropDownList id="valueBox" dataProvider="{values}" labelField="label" maxWidth="900"/>
+		</s:FormItem>
+		
+	</s:Form>
+	
+	<s:DataGrid id="conditions" width="100%" height="100%" dataProvider="{filterConditions}">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="nameColumn" headerText="Attribute" labelFunction="getAttrLabel"/>
+				<s:GridColumn id="operatorColumn" headerText="Operator" labelFunction="getOperatorLabel"/>
+				<s:GridColumn id="valueColumn" headerText="Value" labelFunction="getValueLabel"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>
+	
+	<s:HGroup verticalAlign="baseline">
+		<s:Label id="combinationLabel" text="Combination:"/>
+		<s:RadioButton id="combiner_and" label="AND" groupName="a"/>
+		<s:RadioButton id="combiner_or" label="OR" groupName="a" selected="true"/>	
+	</s:HGroup>
+	
+	<s:controlBarContent>
+		<s:Button id="addBtn" label="Add" click="addCondition()"/>
+		<s:Button id="removeBtn" label="Remove" click="removeCondition()"/>
+		<s:Button id="closeBtn" label="Close" click="close()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

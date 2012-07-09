@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- myMXMLCBuild.xml -->
+<project name="ciknowclient" basedir="." default="deploy-ciknow-assembler">
+	<property environment="env"/>
+	<property name="FLEX_HOME" value="${env.FLEX_HOME}"/>
+	<property file="build.properties"/>
+	<taskdef resource="flexTasks.tasks" classpath="${env.FLEX_HOME}/ant/lib/flexTasks.jar" />
+
+	<target name="init">
+		<echo message="Compiling application..."/>
+		<echo message="target context: ${context}"/>
+		<mkdir dir="${build.dir}"/>
+	</target>
+
+	<target name="compile" depends="init">		
+		<!-- removed from mxmlc below:
+			link-report="${build.dir}/ant-compile-link-report.xml" 
+			dump-config="${build.dir}/ant-compile-config.xml" 
+		-->
+		<mxmlc fork="true" maxmemory="512m"
+            file="${src.dir}/${app.name}.mxml" 
+            output="${build.dir}/${app.name}.swf"
+			debug="false"
+			verify-digests="true"
+			keep-all-type-selectors="true"
+			keep-generated-actionscript="false"
+        	services="${services.config}"
+        	context-root="/${context}"        	
+        	locale="en_US,es_ES,fr_FR,zh_CN,de_DE"
+			allow-source-path-overlap="true"
+			incremental="false"
+			headless-server="true">
+
+ 			<source-path path-element="${src.dir}"/>
+ 			<source-path path-element="${src.dir}/edu/northwestern/ciknow/app/l10n/locale/{locale}"/>
+ 			<source-path path-element="${src.dir}/edu/northwestern/ciknow/report/l10n/locale/{locale}"/>
+			<source-path path-element="${src.dir}/edu/northwestern/ciknow/visa/l10n/locale/{locale}"/>
+			<source-path path-element="${src.dir}/edu/northwestern/ciknow/recommendation/l10n/locale/{locale}"/>
+			<source-path path-element="${src.dir}/edu/northwestern/ciknow/administration/l10n/locale/{locale}"/>
+
+			<external-library-path file="${FLEX_HOME}/frameworks/libs/player/10.2/playerglobal.swc"/>						
+			
+			<library-path file="${env.FLEX_HOME}/frameworks/locale/de_DE"/>
+			<library-path file="${env.FLEX_HOME}/frameworks/locale/en_US"/>
+			<library-path file="${env.FLEX_HOME}/frameworks/locale/es_ES"/>
+			<library-path file="${env.FLEX_HOME}/frameworks/locale/fr_FR"/>
+			<library-path file="${env.FLEX_HOME}/frameworks/locale/zh_CN"/>
+			
+		    <library-path dir="${lib.dir}">	
+		    	<include name="parsley-flex4-2.4.0.swc"/>
+		    	<include name="spicelib-flex-2.4.0.swc"/>
+		    	<include name="babelFx.swc"/>
+		    	<include name="integration-0.18-SNAPSHOT.swc"/>
+		    	<include name="popup-1.15-SNAPSHOT.swc"/>		    	
+		    	<include name="integrationParsley-0.18-SNAPSHOT.swc"/>
+		    </library-path>
+
+			<keep-as3-metadata name="Metadata" />
+			<keep-as3-metadata name="DefaultProperty" />
+			<keep-as3-metadata name="Required" />
+			<keep-as3-metadata name="Event" />
+			<keep-as3-metadata name="AssignableTo" />
+			<keep-as3-metadata name="Inject" />
+			<keep-as3-metadata name="InjectConstructor" />
+			<keep-as3-metadata name="Publish" />
+			<keep-as3-metadata name="Subscribe" />
+			<keep-as3-metadata name="PublishSubscribe" />
+			<keep-as3-metadata name="Factory" />
+			<keep-as3-metadata name="Init" />
+			<keep-as3-metadata name="Destroy" />
+			<keep-as3-metadata name="Observe" />
+			<keep-as3-metadata name="AsyncInit" />
+			<keep-as3-metadata name="ManagedEvents" />
+			<keep-as3-metadata name="MessageDispatcher" />
+			<keep-as3-metadata name="MessageHandler" />
+			<keep-as3-metadata name="MessageBinding" />
+			<keep-as3-metadata name="MessageInterceptor" />
+			<keep-as3-metadata name="MessageError" />
+			<keep-as3-metadata name="Command" />
+			<keep-as3-metadata name="CommandComplete" />
+			<keep-as3-metadata name="CommandResult" />
+			<keep-as3-metadata name="CommandError" />
+			<keep-as3-metadata name="CommandStatus" />
+			<keep-as3-metadata name="ResourceBinding" />
+			<keep-as3-metadata name="Selector" />
+			<keep-as3-metadata name="Target" />
+			<keep-as3-metadata name="Autoremove" />
+			<keep-as3-metadata name="Internal" />
+			<keep-as3-metadata name="ObjectDefinition" />
+			<keep-as3-metadata name="DynamicObject" />
+			<keep-as3-metadata name="SyncId" />
+			
+			<metadata 
+            	title="C-IKNOW" 
+            	description="http://ciknow.northwestern.edu">
+
+				<publisher name="Science of Networks in Communities (SONIC)"/>
+				<creator name="Guangyao Yao" />
+				<contributor name="York Yao" />
+			</metadata>
+			<default-size width="1024" height="768" />
+		</mxmlc>
+	</target>
+	
+	<target name="package" depends="compile">
+		<html-wrapper 
+			title="C-IKNOW" 
+			bgcolor="white" 
+			width="100%" 
+			height="100%" 
+			application="ciknow" 
+			swf="${app.name}" 
+			version-major="10" 
+			version-minor="2" 
+			version-revision="0" 
+			history="true" 
+			version-detection="true"
+			express-install="true" 
+			output="${build.dir}" />
+	</target>
+
+	<target name="copy2ciknow" depends="package" 
+		description="">
+		
+		<copy toDir="${ciknow.dir}/build" overwrite="true">
+			<fileset dir="${build.dir}"/>
+		</copy>	
+	</target>
+		
+	<target name="deploy-ciknow-assembler" depends="package" 
+		description="Deploy ciknow-app to ciknow-assembler">
+		
+		<copy toDir="${ciknow.assembler.dir}/build" overwrite="true">
+			<fileset dir="${build.dir}"/>
+		</copy>	
+	</target> 
+	
+	<target name="deploy-ciknowmgr-assembler" depends="package"
+		description="Deploy ciknow-app to ciknowmgr-assembler">
+		
+		<!-- For publishing _ciknow.war -->
+		<copy toDir="${ciknowmgr.assembler.dir}/build/WEB-INF/template/temp" overwrite="true">
+			<fileset dir="${build.dir}"/>
+		</copy>
+			
+		<copy toDir="${ciknowmgr.assembler.dir}/build/WEB-INF/template/client" includeEmptyDirs="false">
+			<fileset dir="${basedir}">
+				<include name="src/**/*"/>
+				<include name="libs/**/*"/>
+				<include name="build*"/>
+			</fileset>
+		</copy>
+				
+		<!-- note the double $$ to escape ant sepcial expression ${} -->
+		<propertyfile file="${ciknowmgr.assembler.dir}/build/WEB-INF/template/client/build.properties">
+			<entry key="services.config" value="$${basedir}/../server/WEB-INF/flex/services-config.xml"/>
+		</propertyfile>			
+	</target>			
+
+	<target name="clean">
+		<delete dir="${build.dir}"/>
+	</target>
+</project>

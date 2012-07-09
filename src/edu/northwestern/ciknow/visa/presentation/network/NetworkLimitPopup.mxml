@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   creationComplete="init()" close="close()"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:NumberValidator id="numNodesV" source="{numNodes}" property="text" required="true" domain="int"/>
+		<s:NumberValidator id="numEdgesV" source="{numEdges}" property="text" required="true" domain="int"/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.validators.Validator;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+	
+			public var invalidMessage:String = "Invalid Input.";
+			
+			public function init():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_LARGE_NETWORK_LIMITS);
+				dispatcher(e);
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			[MessageHandler(selector="gotLargeNetworkLimits")]
+			public function networkLimitsHandler(event:GeneralEvent):void{
+				var limits:Object = event.data;
+				numNodes.text = limits.nodes;
+				numEdges.text = limits.edges;
+				hardlimit.text = limits.hardlimit;
+			}
+			
+			private function save():void{
+				if (!isValid()) return;
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.SET_LARGE_NETWORK_LIMITS);
+				e.data = new Object();
+				e.data.nodes = numNodes.text;
+				e.data.edges = numEdges.text;
+				e.data.hardlimit = hardlimit.text;
+				dispatcher(e);
+				
+				close();
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function isValid():Boolean{
+				var vs:Array = [numNodesV, numEdgesV];
+				var results:Array = Validator.validateAll(vs);
+				if (results.length > 0){
+					Alert.show(invalidMessage);
+					return false;
+				} return true;
+			}
+		]]>
+	</fx:Script>
+	<s:Form>
+		<s:FormItem id="numNodeItem" label="Number of Nodes">
+			<s:TextInput id="numNodes"/>
+		</s:FormItem>
+		<s:FormItem id="numEdgeItem" label="Number of Edges">
+			<s:TextInput id="numEdges"/>
+		</s:FormItem>	
+		<s:FormItem id="hardLimitItem" label="Hard Limit: Nodes + Edges" 
+					toolTip="The visualizer cannot handle network whose total number of nodes and edges is larger than this hard limit.">
+			<s:TextInput id="hardlimit" enabled="false"/>
+		</s:FormItem>	
+	</s:Form>
+	
+	<s:controlBarContent>
+		<s:Button id="saveBtn" label="Save" click="save()"/>
+		<s:Button id="closeBtn" label="Close" click="close()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(EditNodeType);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Bindable]
+			private var ntdChanged:Boolean = false;
+			
+			[Bindable]public var nodeChangedMessage:String = "Node descriptions changed";
+			
+			[Init]
+			public function init():void{
+				logger.info("init");
+			}	
+			
+			private function selectNodeType():void{
+				if (nodesDg.selectedItem == null) return;
+				nodeLabelTi.text = nodesDg.selectedItem.label;	
+			}			
+			
+			private function onNodeLabelChange():void{
+				var ntd:Object = nodesDg.selectedItem;
+				var nodeLabel:String = StringUtil.trim(nodeLabelTi.text);
+				ntd.label = nodeLabel;
+				ntdChanged = true;
+			}
+			
+			private function saveNodeDescriptions():void{
+				if (!ntdChanged) return;
+				var nodeEvent:NodeEvent = new NodeEvent(NodeEvent.SAVE_NODE_TYPE_DESCRIPTIONS);
+				nodeEvent.data = sm.nodeTypeDescriptions;
+				dispatcher(nodeEvent);
+			}
+			
+			[MessageHandler(selector="nodeTypeDescriptionSaved")]
+			public function onNodeTypeDescriptionsSaved(e:NodeEvent):void{
+				ntdChanged = false;
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form width="100%" height="100%">				
+		<s:FormItem id="nodeTypeItem" label="Node Types" width="100%">
+			<s:DataGrid id="nodesDg" 
+						width="500"
+						dataProvider="{sm.nodeTypeDescriptions}"
+						selectionChange="selectNodeType()">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="" dataField="type" dataTipField="label" showDataTips="true"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:FormItem>
+		
+		<s:FormItem id="nodeLabelItem" label="Node Label" width="100%" 
+					visible="{nodesDg.selectedItem != null}" 
+					includeInLayout="{nodesDg.selectedItem != null}">
+			<s:TextInput id="nodeLabelTi" width="500" change="onNodeLabelChange()"/>
+		</s:FormItem>			
+	</s:Form>
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="saveBtn" label="Save" click="saveNodeDescriptions()"/>
+			<s:Label text="{nodeChangedMessage}" color="red" fontStyle="italic" visible="{ntdChanged}"/>
+		</s:HGroup>
+	</s:controlBarContent>
+</s:Panel>

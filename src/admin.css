@@ -1,0 +1,38 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace admin "edu.northwestern.ciknow.administration.presentation.*";
+
+
+admin|Preferences s|FormItem
+{
+	skinClass : ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWFormItemSkin_Preferences");
+}
+
+
+/************* for recommender configuration *************/
+mx|HBox.headerRow{
+	background-color: #F0E68C;	
+	font-weight:bold;
+}
+
+mx|HBox.oddRow{
+	/*background-color: #F5F5DC;*/
+}
+
+mx|HBox.evenRow{
+	background-color: #F5F5DC;
+}
+
+.firstColumnAlign{
+	
+}
+
+.columnAlign{
+	textAlign: center;
+	horizontalCenter: 0;
+	vertitcalCenter: 0;
+}
+
+
+

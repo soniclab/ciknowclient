@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" verticalAlign="middle" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="selectGroupChange", type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.GroupDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GroupEvent;
+			import edu.northwestern.ciknow.common.util.GroupUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private static const SELECT_GROUP_CHANGE:String = "selectGroupChange";
+			
+			private static var logger:ILogger = LogUtil.getLog(SelectGroups);
+			
+			[Bindable] private var currentGroups:ArrayCollection;
+			[Bindable] private var allGroups:ArrayCollection;
+			public var currentGroupIds:ArrayCollection;
+			public var allGroupIds:ArrayCollection;
+			
+			[Inject]
+			public var groupUtil:GroupUtil;
+			
+			[Inject]
+			public var sm:SharedModel;
+
+/* 			[MessageHandler(selector="INIT_SELECT_GROUPS")]
+			public function onInitSelectGroups(event:GroupEvent):void{
+				if (this.id == String(event.data)) init();
+			}  */
+			
+			[Init]
+			public function init():void{
+				logger.debug("init");
+				allGroups = new ArrayCollection();			
+				currentGroups = new ArrayCollection();
+				var group:GroupDTO;
+				var groupId:Number;
+				
+				if (allGroupIds != null && allGroupIds.length > 0){
+					for each (groupId in allGroupIds){
+						group = groupUtil.getGroupById(groupId);
+						allGroups.addItem(group);
+					}
+				} else {
+					for each (group in sm.groups){
+						if (!group.isPrivate()) allGroups.addItem(group);
+					}					
+				}
+				
+				if (currentGroupIds == null || currentGroupIds.length == 0) return;
+				for each(group in allGroups){
+					if (currentGroupIds.contains(group.groupId)) currentGroups.addItem(group);
+				}
+			}
+			
+			private function addGroups():void{
+				var selectedGroups:Vector.<Object> = allGroupsDg.selectedItems;
+				if (selectedGroups == null || selectedGroups.length == 0) return;
+				
+				logger.debug("add groups.");				
+				for each (var group:GroupDTO in selectedGroups){
+					if (currentGroups.contains(group)) continue;
+					currentGroups.addItem(group);
+					currentGroupIds.addItem(group.groupId);
+				}
+				dispatchEvent(new Event(SELECT_GROUP_CHANGE));
+			}
+			
+			private function removeGroups():void{
+				var selectedGroups:Vector.<Object> = currentGroupsDg.selectedItems;
+				if (selectedGroups == null || selectedGroups.length == 0) return;
+				
+				logger.debug("remove groups.");				
+				for each (var group:GroupDTO in selectedGroups){
+					currentGroups.removeItemAt(currentGroups.getItemIndex(group));
+					currentGroupIds.removeItemAt(currentGroupIds.getItemIndex(group.groupId));
+				}
+				dispatchEvent(new Event(SELECT_GROUP_CHANGE));
+			}
+		]]>
+	</fx:Script>
+
+	<s:DataGrid id="currentGroupsDg" dataProvider="{currentGroups}" 
+				height="100%" width="100%" minWidth="200" 
+				selectionMode="multipleRows"
+				doubleClickEnabled="true" doubleClick="removeGroups()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="currentGroupsColumn" headerText='Current Groups' dataField='name' showDataTips="true" dataTipField="name"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>	
+	
+	<s:VGroup>
+		<s:Button label="&lt;" click="addGroups()"/>
+		<s:Button label="&gt;" click="removeGroups()"/>
+	</s:VGroup>
+	
+	<s:DataGrid id="allGroupsDg" dataProvider="{allGroups}" 
+				height="100%" width="100%" minWidth="200" 
+				selectionMode="multipleRows"
+				doubleClickEnabled="true" doubleClick="addGroups()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="allGroupsColumn" headerText='All Groups' dataField='name' showDataTips="true" dataTipField="name"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>		
+</s:HGroup>

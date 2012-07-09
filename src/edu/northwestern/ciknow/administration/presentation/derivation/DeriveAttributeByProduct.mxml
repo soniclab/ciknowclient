@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%"
+					   title="Derive Attributes by Product">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.utils.StringUtil;		
+			
+			[Bindable] private var categoricalAttrs:ArrayCollection;
+			
+			public var requiredAttributeNameMessage:String = "Please specify attribute name.";
+			public var requiredNodeTypeMessage:String = "Please specify node type(s).";
+			public var requiredCategoricalAttributeMessage:String = "Please select categorical attributes!";
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveAttributeByProduct);
+				super.init();
+				this.derivationType = Constants.DERIVE_ATTRIBUTE_BY_PRODUCT;
+			}
+			
+			public override function derive():void{
+				var name:String = StringUtil.trim(attrName.text);
+				if (name.length == 0) {
+					Alert.show(requiredAttributeNameMessage);
+					return;
+				}				
+				if (typeBox.selectedItems == null || typeBox.selectedItems.length == 0){
+					Alert.show(requiredNodeTypeMessage);
+					return;
+				}				
+				if (abox1.selectedItem == null || abox2.selectedItem == null) {
+					Alert.show(requiredCategoricalAttributeMessage);
+					return;
+				}
+				var attr1:String = abox1.selectedItem.name;
+				var attr2:String = abox2.selectedItem.name;
+				
+				var e:NodeEvent = new NodeEvent(NodeEvent.DERIVE_BY_PRODUCT);
+				e.data = new Object();
+				e.data.attr1 = attr1;
+				e.data.attr2 = attr2;
+				e.data.nodeTypes = nu.getNodeTypes(typeBox.selectedItems);
+				e.data.attrName = name;
+				e.data.job = job;
+				dispatcher(e);
+			}
+			
+			private function checkAvailability():void{
+				var name:String = StringUtil.trim(attrName.text);
+				if (name.length == 0){
+					Alert.show(requiredAttributeNameMessage);
+					return;
+				}
+				var e:NodeEvent = new NodeEvent(NodeEvent.CHECK_ATTR_NAME_AVAILABILITY);
+				e.data = name;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="CheckedAttrNameAvailability")]
+			public function availabilityHandler(e:NodeEvent):void{
+				var n:Number = Number(e.data.n);
+				var attrName:String = String(e.data.attrName);
+				
+				var p:NodeAttributeNameCheckPopup = new NodeAttributeNameCheckPopup();
+				p.attrName = attrName;
+				if (n == 0) p.exist = true;
+				else p.exist = false;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+			}
+			
+			private function getCategoricalAttrs():void{
+				if (typeBox.selectedItems == null || typeBox.selectedItems.length == 0){
+					Alert.show(requiredNodeTypeMessage);
+					return;
+				}		
+				var nodeTypes:ArrayCollection = nu.getNodeTypes(typeBox.selectedItems);
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_COLOR_ATTRIBUTES);
+				e.data = new Object();
+				e.data.nodeTypes = nodeTypes;
+				e.data.loginNodeId = sm.loginNode.nodeId.toString();
+				e.data.source = logger.category;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotColorAttributes")]
+			public function attributeHandler(e:GeneralEvent):void{
+				if (e.data.source == null || e.data.source != logger.category) return;
+				categoricalAttrs = ArrayCollection(e.data.attributes);
+				categoricalAttrs.sort = gu.getSort("label");
+				categoricalAttrs.refresh();
+				
+				if (categoricalAttrs != null && categoricalAttrs.length > 0){
+					abox1.selectedIndex = 0;
+					abox2.selectedIndex = 0;
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="{instruction}"/>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="nameItem" label="Name">
+			<s:TextInput id="attrName" width="500"/>
+			<s:Button id="checkAvailabilityBtn" label="Check Availability" click="checkAvailability()"/>					
+		</s:FormItem>
+		<s:FormItem id="nodeTypesItem" label="Type of Nodes" width="100%">
+			<s:DataGrid id="typeBox" 
+						 dataProvider="{sm.nodeTypeDescriptions}" 
+						 width="500" requestedRowCount="7"
+						 selectionMode="multipleRows">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="label" headerText=""/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:FormItem>
+		<s:FormItem  id="selectCategoricalAttributesItem" label="Select Categorical Attributes">
+			<s:VGroup>
+				<s:DropDownList id="abox1" dataProvider="{categoricalAttrs}" labelField="label" width="500"/>
+				<s:DropDownList id="abox2" dataProvider="{categoricalAttrs}" labelField="label" width="500"/>
+				<s:Button id="refreshBtn" click="getCategoricalAttrs()" label="Refresh"/>	
+			</s:VGroup>
+		</s:FormItem>				
+	</s:Form>
+</derivation:DeriveBase>

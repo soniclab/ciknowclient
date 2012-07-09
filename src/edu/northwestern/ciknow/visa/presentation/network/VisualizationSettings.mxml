@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Metadata>
+		[Event(name="populated", type="edu.northwestern.ciknow.common.events.CustomUIEvent")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.CustomUIEvent;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.EdgeUtil;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			
+			private static const logger:ILogger = LogUtil.getLog(VisualizationSettings);
+			
+			private static const DEFAULT_SIZE:String = "none";
+			
+			private var dataCount:int = 0;
+			[Bindable] private var displayAttributes:ArrayCollection;
+			[Bindable] private var colorAttributes:ArrayCollection;
+			[Bindable] private var sizeQuestions:ArrayCollection;	
+			[Bindable] private var properties:ArrayCollection;
+			
+			public var nodeTypes:ArrayCollection;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			[Inject]
+			public var eu:EdgeUtil;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			public var selectDisplayAttributeMessage:String = "Please select display attribute.";
+			public var selectColorAttributeMessage:String = "Please select color attribute.";
+			public var selectGroupAttributeMessage:String = "Please select group attribute.";
+			public var selectShapeAttributeMessage:String = "Please select shape attribute.";
+			public var radiusLabel:String = "Radius";
+			public var widthLabel:String = "Width";
+			public var heightLabel:String = "Height";
+			[Bindable]public var propertyLabel:String = "Property";
+			[Bindable]public var attributeLabel:String = "Attribute";
+			
+			[Init]
+			public function init():void{
+				logger.debug("init");
+				if (nodeTypes == null || nodeTypes.length == 0){
+					Alert.show("Node types are required.");
+					return;
+				}
+
+				// get display attributes
+				getDisplayAttributes();
+				
+				hideNodeLabelBox.selected = false;
+				removeNodeLabelBox.selected = false;
+				displayMutualLinkBox.selected = false;
+				
+				// For unknown reason, dropdownlist in this page 
+				// cannot bind to sm.COLORABLE_PROPERTIES.
+				// This is a workaround. 09/22/2011 york
+				properties = new ArrayCollection();
+				for each (var item:Object in sm.COLORABLE_PROPERTIES){
+					properties.addItem(item);
+				}
+				rb_property.selected = true;
+				colorPropertiesBox.selectedIndex = 0;
+				rbs_property.selected = true;
+				shapePropertiesBox.selectedIndex = 0;
+				rbg_property.selected = true;
+				groupPropertiesBox.selectedIndex = 0;
+				
+				// get colorable attributes		
+				getColorableAttributes();
+				
+				// get sizes
+				sizeQuestions = new ArrayCollection();				
+				var q:QuestionDTO;				
+				q = new QuestionDTO();
+				q.shortName = DEFAULT_SIZE;
+				q.label = DEFAULT_SIZE;
+				sizeQuestions.addItem(q);				
+				for each (var question:QuestionDTO in sm.questions){
+					if (!nu.isAdmin(sm.loginNode) && qu.isHidden(question)) continue;					
+					if (question.type == Constants.QUESTION_TYPE_RATING && question.fields.length == 1){
+						sizeQuestions.addItem(question);
+					} else if (question.type == Constants.QUESTION_TYPE_CONTINUOUS && question.fields.length == 1){
+						sizeQuestions.addItem(question);
+					}					
+				}
+
+				sizeQuestionsBox.selectedIndex = 0;
+				sizeQuestionsBox2.selectedIndex = 0;
+			}
+					
+			private function getColorableAttributes():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_COLOR_ATTRIBUTES);
+				e.data = new Object();
+				e.data.nodeTypes = nodeTypes;
+				e.data.loginNodeId = sm.loginNode.nodeId.toString();
+				e.data.source = logger.category;
+				dispatcher(e);
+			}			
+			
+			[MessageHandler(selector="gotColorAttributes")]
+			public function colorAttributeHandler(e:GeneralEvent):void{
+				if (e.data.source == null || e.data.source != logger.category) return;
+				colorAttributes = ArrayCollection(e.data.attributes);
+				colorAttributes.sort = gu.getSort("label");
+				colorAttributes.refresh();
+			
+				colorAttributesBox.selectedIndex = 0;
+				shapeAttributesBox.selectedIndex = 0;
+				groupAttributesBox.selectedIndex = 0;
+				
+				dataCount += 1;
+				if (dataCount >= 2){
+					var event:CustomUIEvent = new CustomUIEvent(CustomUIEvent.POPULATED);
+					dispatchEvent(event);
+				}
+			}
+			
+			private function getDisplayAttributes():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_DISPLAY_ATTRIBUTES);
+				e.data = new Object();
+				e.data.nodeTypes = nodeTypes;
+				e.data.loginNodeId = sm.loginNode.nodeId.toString();
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotDisplayAttributes")]
+			public function displayAttributeHandler(e:GeneralEvent):void{
+				displayAttributes = ArrayCollection(e.data);
+				displayAttributes.sort = gu.getSort("label");
+				displayAttributes.refresh();
+				
+				var item:Object;
+				for each (item in displayAttributes){
+					if (item.name == "NODE_LABEL") break;
+				}
+				displayAttrBox.selectedItem = item;
+				
+				dataCount += 1;
+				if (dataCount >= 2){
+					var event:CustomUIEvent = new CustomUIEvent(CustomUIEvent.POPULATED);
+					dispatchEvent(event);
+				}
+			}	
+			
+			private function changeSize():void{
+				var sizeQuestion:QuestionDTO = sizeQuestionsBox.selectedItem as QuestionDTO;
+				if (sizeQuestion.shortName != DEFAULT_SIZE){
+					sizeQuestionsBox2.enabled = true;
+					if (sizeQuestionsBox2.selectedIndex > 0) {
+						sizeLabel.text = widthLabel;
+						sizeLabel2.text = heightLabel;						
+					}
+				} else {
+					sizeQuestionsBox2.enabled = false;
+					sizeLabel.text = radiusLabel;
+					sizeLabel2.text = "";
+				}
+			}
+			
+			private function changeSize2():void{
+				var sizeQuestion:QuestionDTO = sizeQuestionsBox2.selectedItem as QuestionDTO;
+				if (sizeQuestion.shortName != DEFAULT_SIZE){
+					sizeLabel.text = widthLabel;
+					sizeLabel2.text = heightLabel;
+				} else {
+					sizeLabel.text = radiusLabel;
+					sizeLabel2.text = "";
+				}
+			}		
+			
+			public function validate():Boolean{
+				if (displayAttrBox.selectedItem == null){
+					Alert.show(selectDisplayAttributeMessage);
+					return false;
+				}
+				
+				if ((rb_property.selected && colorPropertiesBox.selectedItem == null) || 
+					(rb_attribute.selected && colorAttributesBox.selectedItem == null)){
+					Alert.show(selectColorAttributeMessage);
+					return false;
+				}
+				
+				if ((rbs_property.selected && shapePropertiesBox.selectedItem == null) || 
+					(rbs_attribute.selected && shapeAttributesBox.selectedItem == null)){
+					Alert.show(selectShapeAttributeMessage);
+					return false;
+				}
+				
+				if ((rbg_property.selected && groupPropertiesBox.selectedItem == null) || 
+					(rbg_attribute.selected && groupAttributesBox.selectedItem == null)){
+					Alert.show(selectGroupAttributeMessage);
+					return false;
+				}
+				
+				return true;
+			}
+			
+			public function get url():String{
+				var s:String = "";
+
+				s += ("&displayAttr=" + displayAttrBox.selectedItem.name);
+				s += ("&hideNodeLabel=" + (hideNodeLabelBox.selected?"1":"0"));
+				s += ("&removeNodeLabel=" + (removeNodeLabelBox.selected?"1":"0"));
+				s += ("&mutualAsUndirected=" + (displayMutualLinkBox.selected?"1":"0"));
+
+				// coloring
+				if (rb_property.selected){
+					s += "&colorQuestion=" + colorPropertiesBox.selectedItem.name;
+				} else if (rb_attribute.selected){
+					s += "&colorQuestion=" + colorAttributesBox.selectedItem.name;
+				}	
+				
+				// shaping
+				if (rbs_property.selected){
+					s += "&shapeQuestion=" + shapePropertiesBox.selectedItem.name;
+				} else if (rbs_attribute.selected){
+					s += "&shapeQuestion=" + shapeAttributesBox.selectedItem.name;
+				}
+				
+				// grouping
+				if (rbg_property.selected){
+					s += "&groupQuestion=" + groupPropertiesBox.selectedItem.name;
+				} else if (rbg_attribute.selected){
+					s += "&groupQuestion=" + groupAttributesBox.selectedItem.name;
+				}				
+				
+				// sizing
+				var sizeQuestion:QuestionDTO = sizeQuestionsBox.selectedItem as QuestionDTO;
+				if (sizeQuestion != null && sizeQuestion.shortName != DEFAULT_SIZE) {
+					s += "&sizeQuestion=" + sizeQuestion.questionId;
+					
+					// second dimension for sizing	
+					var sizeQuestion2:QuestionDTO = sizeQuestionsBox2.selectedItem as QuestionDTO;
+					if (sizeQuestion2 != null && sizeQuestion2.shortName != DEFAULT_SIZE) {
+						s += "&sizeQuestion2=" + sizeQuestion2.questionId;
+					}					
+				} 	
+				
+				return s;
+			}
+			
+			public function set url(query:String):void{
+				var item:Object = null;
+				
+				var parts:Array = query.split("&");
+				for each (var part:String in parts){
+					var subparts:Array = part.split("=");
+					var key:String = subparts[0];
+					var value:String = unescape(subparts[1]);	
+					
+					logger.debug("key=" + key + ", value=" + value);
+					if (key == "displayAttr"){
+						item = getSelectedItem(displayAttributes, value);
+						if (item == null){
+							Alert.show("Invalid: " + part);
+						} else {
+							displayAttrBox.selectedItem = item;
+						}
+					} else if (key == "hideNodeLabel"){
+						hideNodeLabelBox.selected = (value == "1"?true:false);
+					} else if (key == "removeNodeLabel"){
+						removeNodeLabelBox.selected = (value == "1"?true:false);
+					} else if (key == "mutualAsUndirected"){
+						displayMutualLinkBox.selected = (value == "1"?true:false);
+					} else if (key == "colorQuestion"){	
+						item = getSelectedItem(properties, value);
+						if (item != null){
+							rb_property.selected = true;
+							colorPropertiesBox.selectedItem = item;
+						} else{
+							item = getSelectedItem(colorAttributes, value);
+							if (item != null){
+								rb_attribute.selected = true;
+								colorAttributesBox.selectedItem = item;
+							} else Alert.show("Invalid: " + part);
+						}
+					} else if (key == "shapeQuestion"){	
+						item = getSelectedItem(properties, value);
+						if (item != null){
+							rbs_property.selected = true;
+							shapePropertiesBox.selectedItem = item;
+						} else{
+							item = getSelectedItem(colorAttributes, value);
+							if (item != null){
+								rbs_attribute.selected = true;
+								shapeAttributesBox.selectedItem = item;
+							} else Alert.show("Invalid: " + part);
+						}
+					} else if (key == "groupQuestion"){	
+						item = getSelectedItem(properties, value);
+						if (item != null){
+							rbg_property.selected = true;
+							groupPropertiesBox.selectedItem = item;
+						} else{
+							item = getSelectedItem(colorAttributes, value);
+							if (item != null){
+								rbg_attribute.selected = true;
+								groupAttributesBox.selectedItem = item;
+							} else Alert.show("Invalid: " + part);
+						}
+					} else if (key == "sizeQuestion"){
+						var q1:QuestionDTO = qu.getQuestionById(sm.questions, Number(value));
+						if (q1 == null) Alert.show("Invalid: " + part);
+						sizeQuestionsBox.selectedItem = q1;
+					} else if (key == "sizeQuestion2"){
+						sizeQuestionsBox2.enabled = true;
+						var q2:QuestionDTO = qu.getQuestionById(sm.questions, Number(value));
+						if (q2 == null) Alert.show("Invalid: " + part);						
+						sizeQuestionsBox2.selectedItem = q2;
+					} 
+				}
+			}
+			
+			private function getSelectedItem(attributes:ArrayCollection, value:Object):Object{
+				for each (var item:Object in attributes){
+					if (item.name == value) {
+						return item;
+					}				
+				}
+				return null;				
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form width="100%" height="100%">					
+		<s:FormItem id="displayItem" label="Nodes are display as:">
+			<s:DropDownList id="displayAttrBox" dataProvider="{displayAttributes}" width="400"/>
+		</s:FormItem>	
+		<s:FormItem id="hideItem" label="Hide Node Label">
+			<s:CheckBox id="hideNodeLabelBox"/>
+		</s:FormItem>		
+		<s:FormItem id="removeItem" label="Remove Node Label">
+			<s:CheckBox id="removeNodeLabelBox"/>
+		</s:FormItem>	
+		<s:FormItem id="displayMutualItem" label="Display mutual links as undirected">
+			<s:CheckBox id="displayMutualLinkBox"/>
+		</s:FormItem>
+		
+		<s:FormItem id="colorItem" label="Colors">
+			<s:HGroup verticalAlign="baseline">
+				<s:RadioButton id="rb_property" groupName="color" selected="true"/>
+				<s:Label text="{propertyLabel}"/>
+				<s:DropDownList id="colorPropertiesBox" 
+								dataProvider="{properties}" 
+								labelField="label"  
+								enabled="{rb_property.selected}" 
+								selectedIndex="0"
+								maxWidth="400"/>
+				
+				<s:Spacer width="10"/>
+				
+				<s:RadioButton id="rb_attribute" groupName="color"/>
+				<s:Label text="{attributeLabel}"/>
+				<s:DropDownList id="colorAttributesBox"
+								dataProvider="{colorAttributes}" 
+								labelField="label"  
+								enabled="{rb_attribute.selected}"
+								maxWidth="400" styleName="renderer"/>	
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="shapeItem" label="Shapes">
+			<s:HGroup verticalAlign="baseline">
+				<s:RadioButton id="rbs_property" groupName="shape" selected="true"/>
+				<s:Label text="{propertyLabel}"/>
+				<s:DropDownList id="shapePropertiesBox" 
+								dataProvider="{properties}" 
+								labelField="label"  
+								enabled="{rbs_property.selected}" 
+								selectedIndex="0"
+								maxWidth="400"/>
+				
+				<s:Spacer width="10"/>
+				
+				<s:RadioButton id="rbs_attribute" groupName="shape"/>
+				<s:Label text="{attributeLabel}"/>
+				<s:DropDownList id="shapeAttributesBox"
+								dataProvider="{colorAttributes}" 
+								labelField="label"  
+								enabled="{rbs_attribute.selected}"
+								maxWidth="400" styleName="renderer"/>	
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem id="groupItem" label="Groups">
+			<s:HGroup verticalAlign="baseline">
+				<s:RadioButton id="rbg_property" groupName="group" selected="true"/>
+				<s:Label text="{propertyLabel}"/>
+				<s:DropDownList id="groupPropertiesBox"  
+								dataProvider="{properties}" 
+								labelField="label"  
+								enabled="{rbg_property.selected}" 
+								selectedIndex="0"
+								maxWidth="400"/>
+				
+				<s:Spacer width="10"/>
+				
+				<s:RadioButton id="rbg_attribute" groupName="group"/>
+				<s:Label text="{attributeLabel}"/>
+				<s:DropDownList id="groupAttributesBox"
+								dataProvider="{colorAttributes}" 
+								labelField="label"  
+								enabled="{rbg_attribute.selected}"
+								maxWidth="400" styleName="renderer"/>	
+			</s:HGroup>
+		</s:FormItem>	
+		
+		<s:FormItem id="sizeItem" label="Size">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="sizeQuestionsBox" 
+							dataProvider="{sizeQuestions}" 
+							labelField="label" styleName="renderer"
+							change="changeSize()"/>
+				<s:Label id="sizeLabel" 
+						 fontStyle="italic" 
+						 text="Radius"/>	
+			</s:HGroup>
+		</s:FormItem>	
+		
+		<s:FormItem id="sizeItem2" label="Size 2">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="sizeQuestionsBox2" 
+							dataProvider="{sizeQuestions}" 
+							labelField="label" styleName="renderer"
+							enabled="false" 
+							change="changeSize2()"/>
+				<s:Label id="sizeLabel2" 
+						 fontStyle="italic"/>	
+			</s:HGroup>
+		</s:FormItem>			
+	</s:Form>
+</s:VGroup>

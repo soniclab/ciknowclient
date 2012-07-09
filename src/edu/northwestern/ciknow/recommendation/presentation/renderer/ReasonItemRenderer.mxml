@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					clipAndEnableScrolling="true" 
+					xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.util.Constants;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			override public function prepare(hasBeenRecycled:Boolean):void {
+	      		super.prepare(hasBeenRecycled);
+			}
+			
+			private function onClick():void{
+				var url:String = sm.baseURL + 
+					"/vis?networkType=" + Constants.NETWORK_RECOMMENDER  + 
+					"&sourceId=" + data.nodeId + 
+					"&recId="+ data.recId +
+					"&identifyScore="+ data.identifyScore +
+					"&idMetricType="+ data.idMetricType +
+					"&selectScore="+ data.selectScore +
+					"&seMetricType="+ data.seMetricType +
+					"&finalScore="+ data.finalScore +
+					"&questionId="+ data.questionId +  
+					"&os=" + flash.system.Capabilities.os.substr(0, 3) +
+					"&targetName=" + escape(data.targetName) +
+					"&targetLabel=" + escape(data.targetLabel);
+				navigateToURL(new URLRequest(url));
+			}
+		]]>
+	</fx:Script>
+
+	<s:HGroup width="100%" height="100%" horizontalAlign="center" verticalAlign="middle">
+		<s:Button id="btn" styleName="questionMark" label="?" click="onClick()" width="25" height="25"/>
+	</s:HGroup>	
+</s:GridItemRenderer>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:GridItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					xmlns:s="library://ns.adobe.com/flex/spark" 
+					xmlns:mx="library://ns.adobe.com/flex/mx" 
+					width="100%" height="100%">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			/**
+			 * This is an itemRenderer. 
+			 * But the way it is implemented makes it an effective editor as well
+			 */
+			
+			public override function prepare(hasBeenRecycled:Boolean):void{
+				if (data == null) return; // very important!
+				var hex:String = String(data.hex);
+				cpLabel.text = hex;
+				cp.selectedColor = uint(hex);
+			}
+			
+			private function selectColor():void{				
+				var hex:String = colorToHex(cp.selectedColor);		
+				cpLabel.text = hex;
+				data.hex = hex;
+			}
+			
+			// this method is available in GeneralUtil.as
+			// but I don't want to create new GeneralUtil instance, or 
+			// add this editor into parsley context 
+			private function colorToHex(color:uint):String{
+				var hex:String = (color & 0x00FFFFFF).toString(16).toUpperCase();
+				var sb:String = "0x";
+				for (var i:int = 0; i < 6-hex.length; i++){
+					sb += "0";
+				}
+				sb += hex;
+				
+				return sb;			
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup verticalAlign="baseline">
+		<mx:ColorPicker id="cp" width="100" change="selectColor()"/>
+		<s:Label id="cpLabel"/>
+	</s:HGroup>
+</s:GridItemRenderer>

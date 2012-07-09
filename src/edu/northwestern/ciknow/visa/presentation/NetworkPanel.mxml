@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 styleName="headlessPanel" 
+		 xmlns:network="edu.northwestern.ciknow.visa.presentation.network.*" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<s:states>
+		<s:State name="default"/>
+		<s:State name="visualSettings"/>
+		<s:State name="analyticSettings"/>
+		<s:State name="analytics"/>
+		<s:State name="exportDLSettings"/>
+	</s:states>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.domain.VisualizationDTO;
+			import edu.northwestern.ciknow.common.events.NetworkAnalyticsEvent;
+			import edu.northwestern.ciknow.common.popup.AutoClosePopup;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.visa.presentation.network.NetworkBase;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.StateChangeEvent;
+			import mx.logging.ILogger;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static const logger:ILogger = LogUtil.getLog(NetworkPanel);
+			
+			private var selectedNetwork:NetworkBase; 	// local or custom
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var context:Context;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var nu:NodeUtil;
+
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			public var waitMessage:String = 
+				"Please wait for the visualization to be loaded into a new window or tab.\n" +
+				"Repeatedly clicking the 'Submit' button may use up server CPU \n" +
+				"and slow down the whole system. \n" +
+				"Thank you for your cooperation.";
+				
+			[Bindable]public var navSelectNetworkLabel:String = "Select Network";
+			[Bindable]public var navVisualizationSettingsLabel:String = ">> Visualization Settings";
+			[Bindable]public var navAnalyticsSettingsLabel:String = ">> Analytics Settings";
+			[Bindable]public var navAnalyticsLabel:String = ">> Analytics";
+			[Bindable]public var navExportDLSettingsLabel:String = ">> Export DL Settings";
+			
+			[Bindable]public var localNetworkBtnLabel:String = "Ego Network";
+			[Bindable]public var customNetworkBtnLabel:String = "Custom Network";
+			
+			[Bindable]public var visualizationBtnLabel:String = "Visualization";
+			[Bindable]public var analyticsBtnLabel:String = "Analytics";
+			[Bindable]public var exportGraphmlBtnLabel:String = "Export GraphML";
+			[Bindable]public var exportDLBtnLabel:String = "Export DL(UCINET)";
+			[Bindable]public var backBtnLabel:String = "Back";
+			[Bindable]public var submitBtnLabel:String = "Submit";
+			[Bindable]public var saveQueryBtnLabel:String = "Save Query";
+			
+			[Init]
+			public function init():void{
+				// Must set the "networkGroup.itemCreationPolicy" to "immediate"
+				// Otherwise "localNetwork" is null when assigned to "selectedNetwork"
+				selectedNetwork = localNetwork;
+			}
+			
+			private function onNetworkChange():void{
+				if (localNetworkBtn.selected){
+					logger.debug("local");
+					gu.show(localNetwork);
+					gu.hide(customNetwork);
+					selectedNetwork = localNetwork;
+					
+				} else if (customNetworkBtn.selected){
+					logger.debug("custom");
+					gu.hide(localNetwork);
+					gu.show(customNetwork);
+					selectedNetwork = customNetwork;
+				}
+			}
+			
+			private function getVis():void{
+				if (!visualSettings.validate()) return;
+				
+				var url:String = gu.getURL(
+					(localNetworkBtn.selected?Constants.NETWORK_LOCAL:Constants.NETWORK_CUSTOM), 
+					selectedNetwork.url, 
+					visualSettings.url);	
+				
+				navigateToURL(new URLRequest(url)); 				
+				
+				var p:AutoClosePopup = new AutoClosePopup();				
+				gu.showPopup(p, moduleFactory);				
+				p.msg.text = waitMessage;					
+				p.duration = 10;
+				p.startTimer();
+			}
+			
+			private function saveQuery():void{
+				if (!visualSettings.validate()) return;
+				
+				var url:String = gu.getURL(
+					(localNetworkBtn.selected?Constants.NETWORK_LOCAL:Constants.NETWORK_CUSTOM), 
+					selectedNetwork.url, 
+					visualSettings.url);	
+				
+				var index:int = url.indexOf("?");
+				url = url.substring(index + 1);
+				logger.debug("query: " + url);	
+				
+				var vis:VisualizationDTO = new VisualizationDTO();
+				vis.visId = 0;
+				vis.version = 0;
+				vis.name = "";
+				vis.label = ""	;
+				vis.creatorId = sm.loginNode.nodeId;
+				vis.type = "query";
+				vis.networkType = localNetworkBtn.selected?Constants.NETWORK_LOCAL:Constants.NETWORK_CUSTOM;				
+				vis.data = url;
+				
+				var p:SavedVisualizationPopup = new SavedVisualizationPopup();
+				p.vis = vis;
+				p.width = sm.indexPage.width;
+				p.height = sm.indexPage.height;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);			
+			}
+			
+
+			
+			private function getAnalytics():void{
+				currentState = 'analytics';	
+				
+				var d:Object = selectedNetwork.analyticSettings;
+				d.direction = analyticSettings.graphDirection.selectedIndex.toString();
+				d.undirectedOperator = String(analyticSettings.undirectedOperatorBox.selectedItem);
+				logger.debug(String(d));
+				
+				var e:NetworkAnalyticsEvent = new NetworkAnalyticsEvent(NetworkAnalyticsEvent.GET_NETWORK_METRICS);
+				e.data = d;
+				dispatcher(e);							
+			}
+			
+			private function exportGraphML():void{
+				if (!selectedNetwork.validate()) return;
+				
+				var params:URLVariables = selectedNetwork.exportSettings;
+				params.exportType = "graphml";
+				params.importable = "0"; // by default the exported graphml can not be imported back
+				
+				iu.download(params, "ciknow.graphml.xml", false, "/vis");
+			}
+			
+			private function exportDL():void{
+				var params:URLVariables = selectedNetwork.exportSettings;
+				params.exportType = "dl";
+				params.labelEmbedded = exportDLSettings.labelEmbeddedBox.selected?"1":"0";	
+				iu.download(params, "ciknow.dl.zip", false, "/vis");
+			}
+			
+			/***************************** STATE NAVIGATION *********************/
+			private function toDefault():void{			
+				currentState = 'default';
+			}
+			
+			private function toVisualSettings():void{
+				if (!selectedNetwork.validate()) return;
+				visualSettings.nodeTypes = selectedNetwork.getNodeTypes();
+				currentState = 'visualSettings';
+			}
+			
+			private function toAnalyticSettings():void{
+				if (!selectedNetwork.validate()) return;
+				currentState = 'analyticSettings';
+			}
+			
+			private function toExportDLSettings():void{
+				if (!selectedNetwork.validate()) return;
+				currentState = 'exportDLSettings';
+			}
+			/***************************** STATE NAVIGATION *********************/
+
+		]]>
+	</fx:Script>
+	
+<!--	<s:HGroup verticalAlign="baseline">
+
+	</s:HGroup>-->
+	<mx:HBox width="100%" height="20" styleName="info" verticalAlign="middle">
+		<s:Label text="{navSelectNetworkLabel}"/>
+		<s:Label text="{navVisualizationSettingsLabel}" includeIn="visualSettings"/>
+		<s:Label text="{navAnalyticsSettingsLabel}" includeIn="analyticSettings, analytics"/>
+		<s:Label text="{navAnalyticsLabel}" includeIn="analytics"/>
+		<s:Label text="{navExportDLSettingsLabel}" includeIn="exportDLSettings"/>
+	</mx:HBox>
+	
+	<s:VGroup id="networkGroup" includeIn="default" width="100%" height="100%" itemCreationPolicy="immediate">
+		<s:HGroup verticalAlign="baseline">
+			<s:RadioButton id="localNetworkBtn" 
+						   selected="true" groupName="n" 
+						   click="onNetworkChange()" label="{localNetworkBtnLabel}"/>
+			<s:RadioButton id="customNetworkBtn" 
+						   selected="false" groupName="n" 
+						   click="onNetworkChange()" label="{customNetworkBtnLabel}"/>
+		</s:HGroup>
+		<network:NetworkLocal id="localNetwork"/>
+		<network:NetworkCustom id="customNetwork" visible="false" includeInLayout="false"/>
+	</s:VGroup>
+	
+	<network:VisualizationSettings id="visualSettings" includeIn="visualSettings" itemCreationPolicy="immediate"/>
+	
+	<network:AnalyticSettings id="analyticSettings" includeIn="analyticSettings"/>
+	
+	<network:Analytics id="analytics" includeIn="analytics"/>
+	
+	<network:ExportDLSettings id="exportDLSettings" includeIn="exportDLSettings"/>
+	
+	
+	<s:controlBarContent>		
+		<s:Button id="visualizationBtn" label="{visualizationBtnLabel}" click="toVisualSettings()" includeIn="default"/>
+		<s:Button id="analyticsBtn" label="{analyticsBtnLabel}" click="toAnalyticSettings()" includeIn="default"/>
+		<s:Button id="exportGraphmlBtn" label="{exportGraphmlBtnLabel}" click="exportGraphML()" includeIn="default"/>
+		<s:Button id="exportDLBtn" label="{exportDLBtnLabel}" click="toExportDLSettings()" includeIn="default"/>
+		
+		<s:Button id="backBtn" label="{backBtnLabel}" excludeFrom="default" 
+				  click.visualSettings="toDefault()"
+				  click.analyticSettings="toDefault()"
+				  click.analytics="toAnalyticSettings()"
+				  click.exportDLSettings="toDefault()"/>
+		<s:Button id="submitBtn" label="{submitBtnLabel}" excludeFrom="default, analytics"
+				  click.visualSettings="getVis()" 
+				  click.analyticSettings="getAnalytics()"
+				  click.exportDLSettings="exportDL()"/>
+		
+		<s:Button id="saveQueryBtn" label="{saveQueryBtnLabel}" click="saveQuery()" includeIn="visualSettings"/>
+	</s:controlBarContent>
+</s:Panel>

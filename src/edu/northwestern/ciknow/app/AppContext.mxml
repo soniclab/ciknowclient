@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:domain="edu.northwestern.ciknow.common.domain.*" 
+		   xmlns:parsley="http://www.spicefactory.org/parsley" 
+		   xmlns:util="edu.northwestern.ciknow.common.util.*"
+		   xmlns:data="com.adobe.cairngorm.integration.data.*">
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.controller.*;
+			import edu.northwestern.ciknow.common.events.*;
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Model -->
+		<domain:SharedModel/>
+		
+		<!-- Application -->
+		<parsley:DynamicCommand type="{InitCommand}" selector="{GeneralEvent.INIT}"/>
+		
+		<parsley:DynamicCommand type="{UpdatePasswordCommand}" selector="{NodeEvent.UPDATE_PASSWORD}"/>
+		
+		<parsley:DynamicCommand type="{GetErrorMsgCommand}" selector="{GeneralEvent.GET_ERROR_MSG}"/>
+		<parsley:DynamicCommand type="{GetAllPlainNodesCommand}" selector="{NodeEvent.GET_PLAIN_NODES}"/>
+		
+		<parsley:DynamicCommand type="{NodeGetColorableAttributesCommand}" selector="{GeneralEvent.GET_COLOR_ATTRIBUTES}"/>
+		<parsley:DynamicCommand type="{NodeGetFilterableAttributesCommand}" selector="{GeneralEvent.GET_FILTER_ATTRIBUTES}"/>
+		<parsley:DynamicCommand type="{NodeGetAttributeValuesCommand}" selector="{GeneralEvent.GET_ATTRIBUTE_VALUES}"/>
+		
+		<parsley:DynamicCommand type="{EdgeGetColorableAttributesCommand}" selector="{GeneralEvent.GET_EDGE_COLOR_ATTRIBUTES}"/>
+		<parsley:DynamicCommand type="{EdgeGetAttributeValuesCommand}" selector="{GeneralEvent.GET_EDGE_ATTRIBUTE_VALUES}"/>
+	
+		<parsley:DynamicCommand type="{QuestionUpdateCommand}" selector="{QuestionEvent.UPDATE_QUESTION}"/>
+		
+		<parsley:DynamicCommand type="{NodeCreateCommand}" selector="{NodeEvent.CREATE_NODE}"/>	
+		
+		<parsley:DynamicCommand type="{GetEdgeTypesByFromAndToNodeTypesCommand}" selector="{EdgeEvent.GET_EDGE_TYPES_BY_FROM_TO_NODE_TYPES}"/>
+		
+		<!-- Services -->
+		<mx:RemoteObject  
+			id="genericRO"  
+			destination="genericRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true">  
+		</mx:RemoteObject> 
+		
+		<mx:RemoteObject  
+			id="nodeRO"  
+			destination="nodeRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true">  
+		</mx:RemoteObject> 
+		
+		<mx:RemoteObject  
+			id="edgeRO"  
+			destination="edgeRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true"/> 
+		
+		<mx:RemoteObject  
+			id="questionRO"  
+			destination="questionRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true"/>  
+		
+		<mx:RemoteObject  
+			id="surveyRO"  
+			destination="surveyRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true"/>  
+				
+		<mx:RemoteObject  
+			id="groupRO"  
+			destination="groupRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true"/> 
+		
+		<mx:RemoteObject  
+			id="roleRO"  
+			destination="roleRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true"/> 
+		
+		<mx:RemoteObject  
+			id="networkAnalyticsRO"  
+			destination="networkAnalyticsRO"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true">  
+		</mx:RemoteObject> 
+		
+		<mx:RemoteObject  
+			id="recommenderService"  
+			destination="recommenderServiceImpl"  
+			makeObjectsBindable="true"   
+			showBusyCursor="true"/>  
+		
+		<!-- common utilities -->
+		<util:GeneralUtil/>
+		<util:NodeUtil/>
+		<util:EdgeUtil/>
+		<util:QuestionUtil/>
+		<util:GroupUtil/>
+		<util:RoleUtil/>
+		<util:FileDownload/>
+		<util:FileUpload/>
+		<util:IOUtil/>
+		
+		<!-- caches -->
+		<data:DataCache id="nodeCache" type="edu.northwestern.ciknow.common.domain.NodeDTO"/>
+		<data:DataCache id="groupCache" type="edu.northwestern.ciknow.common.domain.GroupDTO"/>
+		<data:DataCache id="roleCache" type="edu.northwestern.ciknow.common.domain.RoleDTO"/>
+		<data:DataCache id="questionCache" type="edu.northwestern.ciknow.common.domain.QuestionDTO"/>
+		<data:DataCache id="surveyCache" type="edu.northwestern.ciknow.common.domain.SurveyDTO"/>
+	</fx:Declarations>
+
+</fx:Object>
+

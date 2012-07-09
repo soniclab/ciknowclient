@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" verticalAlign="middle" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="selectRoleChange", type="flash.events.Event")]
+	</fx:Metadata>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.RoleDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.RoleUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private static const SELECT_ROLE_CHANGE:String = "selectRoleChange";
+			private static var logger:ILogger = LogUtil.getLog(SelectRoles);
+			
+			[Bindable] private var currentRoles:ArrayCollection;
+			[Bindable] private var allRoles:ArrayCollection;
+			public var currentRoleIds:ArrayCollection;
+			public var allRoleIds:ArrayCollection;
+			
+			[Inject]
+			public var roleUtil:RoleUtil;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			public function init():void{
+				allRoles = new ArrayCollection();			
+				currentRoles = new ArrayCollection();
+				var role:RoleDTO;
+				var roleId:Number;
+				
+				if (allRoleIds != null && allRoleIds.length > 0){
+					for each (roleId in allRoleIds){
+						role = roleUtil.getRoleById(roleId);
+						allRoles.addItem(role);
+					}
+				} else {
+					allRoles = sm.roles;				
+				}
+				
+				if (currentRoleIds == null || currentRoleIds.length == 0) return;
+				for each(role in allRoles){
+					if (currentRoleIds.contains(role.roleId)) currentRoles.addItem(role);
+				}
+			}
+			
+			private function addRoles():void{
+				var selectedRoles:Vector.<Object> = allRolesDg.selectedItems;
+				if (selectedRoles == null || selectedRoles.length == 0) return;
+				
+				logger.debug("add roles.");				
+				for each (var role:RoleDTO in selectedRoles){
+					if (currentRoles.contains(role)) continue;
+					currentRoles.addItem(role);
+					currentRoleIds.addItem(role.roleId);
+				}
+				dispatchEvent(new Event(SELECT_ROLE_CHANGE));
+			}
+			
+			private function removeRoles():void{
+				var selectedRoles:Vector.<Object> = currentRolesDg.selectedItems;
+				if (selectedRoles == null || selectedRoles.length == 0) return;
+				
+				logger.debug("remove roles.");				
+				for each (var role:RoleDTO in selectedRoles){
+					currentRoles.removeItemAt(currentRoles.getItemIndex(role));
+					currentRoleIds.removeItemAt(currentRoleIds.getItemIndex(role.roleId));
+				}
+				dispatchEvent(new Event(SELECT_ROLE_CHANGE));
+			}
+			
+		]]>
+	</fx:Script>
+
+	<s:DataGrid id="currentRolesDg" dataProvider="{currentRoles}" 
+				height="100%" width="100%" 
+				selectionMode="multipleRows"
+				doubleClickEnabled="true" doubleClick="removeRoles()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="currentRolesColumn" headerText='Current Roles' dataField='name' showDataTips="true" dataTipField="name"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>	
+	
+	<s:VGroup>
+		<s:Button label="&lt;" click="addRoles()"/>
+		<s:Button label="&gt;" click="removeRoles()"/>
+	</s:VGroup>
+	
+	<s:DataGrid id="allRolesDg" dataProvider="{allRoles}" 
+				height="100%" width="100%" 
+				selectionMode="multipleRows" 
+				doubleClickEnabled="true" doubleClick="addRoles()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="allRolesColumn" headerText='All Roles' dataField='name' showDataTips="true" dataTipField="name"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>		
+</s:HGroup>

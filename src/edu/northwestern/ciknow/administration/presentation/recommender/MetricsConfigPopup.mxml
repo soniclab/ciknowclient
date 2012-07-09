@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   creationComplete="init()" close="close()"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private var logger:ILogger = LogUtil.getLog(MetricsConfigPopup);
+
+			public var pair:XML = null;
+			public var source:String = null;
+			public var parentButton:mx.controls.Button = null;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			private function init():void{
+				var m:String = pair.@metric;
+				logger.debug("configuring metric: " + m);
+				if (m == Constants.SP) spBtn.selected = true;
+				else if (m == Constants.ERGM) ergmBtn.selected = true;
+				else if (m == Constants.PEARSON || m == Constants.COSINE 
+					|| m == Constants.EUCLIDEAN || m == Constants.SEUCLIDEAN 
+					|| m == Constants.PMATCH || m == Constants.SPMATCH){
+					similarityBtn.selected = true;		
+				};
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function next():void{
+				if (similarityBtn.selected){
+					configSimilarity();
+				} else if (spBtn.selected){
+					configSP();
+				} else if (ergmBtn.selected){
+					configErgm();
+				}
+			}
+			
+			private function configSimilarity():void{					
+				var p:MetricsSimilarityPopup = new MetricsSimilarityPopup();	
+				p.source = source;					
+				p.pair = pair;	
+				p.parentButton = parentButton;							
+				p.title = title + " :: Similarity";	
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+				
+				close();		
+			}
+			
+			private function configSP():void{
+				var p:MetricsShortestPathPopup = new MetricsShortestPathPopup();	
+				p.source = source;			
+				p.pair = pair;
+				p.parentButton = parentButton;
+				p.title = title + " :: Shortest Path";
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+				
+				close();
+			}
+			
+			private function configErgm():void{							
+				var p:MetricsErgmPopup = new MetricsErgmPopup();			
+				p.pair = pair;	
+				p.parentButton = parentButton;				
+				p.source = source;											
+				p.title = title + " :: ERGM";
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+				
+				close();				
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}			
+		]]>
+	</fx:Script>
+	
+	
+
+	<s:RadioButton id="similarityBtn" groupName="a" label="Similarity"/>
+	<s:RadioButton id="spBtn" groupName="a" label="Shortest Path"/>
+	<s:RadioButton id="ergmBtn" groupName="a" label="ERGM/p*"/>
+
+	<s:controlBarContent>
+		<s:Button id="nextBtn" label="Next" click="next()"/>
+		<s:Button id="cancelBtn" label="Cancel" click="close()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

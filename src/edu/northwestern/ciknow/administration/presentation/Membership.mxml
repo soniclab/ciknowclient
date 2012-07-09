@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" xmlns:parsley="http://www.spicefactory.org/parsley" xmlns:membership="edu.northwestern.ciknow.administration.presentation.membership.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			[Bindable]public var prompt:String = "Please Select An Item";
+			[Bindable]public var groupManager:String = "Group Manager";
+			[Bindable]public var roleManager:String = "Role Manager";
+			[Bindable]public var invitation:String = "Invitation";
+			
+		]]>
+	</fx:Script>
+	<s:DropDownList id="list" prompt="{prompt}"
+					change="stacks.selectedIndex = list.selectedIndex" 
+					width="400" styleName="navigation">
+		<s:layout>
+			<s:VerticalLayout gap="0" requestedRowCount="{list.dataProvider.length}" horizontalAlign="contentJustify"/>
+		</s:layout>
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:String>{groupManager}</fx:String>
+				<fx:String>{roleManager}</fx:String>
+				<fx:String>{invitation}</fx:String>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	
+	<s:Spacer height="10"/>
+	
+	<mx:ViewStack id="stacks" width="100%" height="100%" 
+				  visible="{list.selectedIndex != -1}" 
+				  includeInLayout="{list.selectedIndex != -1}">
+		<s:NavigatorContent label="Group Manager">
+			<membership:Group styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Role Manager">
+			<membership:Role styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Invitation">
+			<membership:Invite styleName="headlessPanel"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:VGroup>

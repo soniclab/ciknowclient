@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  creationComplete="init()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			[Bindable] public var answers:ArrayCollection;
+			
+			private function init():void{
+				/*
+				answers = new ArrayCollection([
+					{field: "field1", count: 12},
+					{field: "field2", count: 20},
+					{field: "field3", count: 25},
+					{field: "field4", count: 30},
+					{field: "field5", count: 38}
+				]);
+				*/
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:ColumnChart id="chart" dataProvider="{answers}" showDataTips="true" width="100%" height="100%">
+		<mx:horizontalAxis>
+			<mx:CategoryAxis dataProvider="{answers}" categoryField="fieldLabel"/>
+		</mx:horizontalAxis>
+		<mx:series>
+			<mx:ColumnSeries xField="fieldLabel" yField="count" displayName="Count"/>
+		</mx:series>		
+	</mx:ColumnChart>
+	<mx:Legend dataProvider="{chart}"/>
+</s:VGroup>

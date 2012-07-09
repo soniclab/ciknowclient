@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   creationComplete="init()" close="close()"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.popup.TextDisplayPopup;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.EdgeUtil;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			
+			import spark.collections.SortField;
+			
+			private static var logger:ILogger = LogUtil.getLog(MetricsErgmPopup);
+			
+			private var p0:XML = <param/>
+			private var p1:XML = <param b1='1' b2='1' b3='1' b4='1' b5='1' b6='1'/>;
+			private var p2:XML = <param b1='2' b2='2' b3='2' b4='2' b5='2' b6='2'/>;
+			private var p3:XML = <param b1='3' b2='3' b3='3' b4='3' b5='3' b6='3'/>;
+			private var p4:XML = <param b1='4' b2='4' b3='4' b4='4' b5='4' b6='4'/>;
+			private var p5:XML = <param b1='5' b2='5' b3='5' b4='5' b5='5' b6='5'/>;
+			private var p6:XML = <param b1='6' b2='6' b3='6' b4='6' b5='6' b6='6'/>;									
+			[Bindable] private var params:ArrayCollection = new ArrayCollection([
+				{label:"internal estimate", xml:p0},
+				{label:"predefined set 1", xml:p1},
+				{label:"predefined set 2", xml:p2},
+				{label:"predefined set 3", xml:p3},
+				{label:"predefined set 4", xml:p4},
+				{label:"predefined set 5", xml:p5},
+				{label:"predefined set 6", xml:p6}]); 
+			[Bindable] private var availableEdges:ArrayCollection = new ArrayCollection();
+			[Bindable] private var selectedEdges:ArrayCollection = new ArrayCollection();
+			private var newPair:XML = null;				
+			private var p:TextDisplayPopup = null;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+		
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var eu:EdgeUtil;
+			
+			public var pair:XML = null;			
+			public var parentButton:mx.controls.Button = null;
+			public var source:String = "identification";
+
+			public var removeEdgeMessage:String = "Please select from selected edge types...";
+			public var addEdgeMessage:String = "Please select from available edge types...";
+			public var lastCalculateMessage:String = "Last calculation time: ";
+			public var selectPredefinedMessage:String = "Please select a predefined parameters.";
+			public var calculationTitle:String = "ERGM/p* Metrics Computation";
+			public var calculationMessage:String = "Calculating ...";
+			
+			private function init():void{														
+				if (pair.@metric == null || pair.@metric == Constants.ERGM) newPair = new XML(pair.toXMLString());
+				else {
+					newPair = <pair/>;
+					newPair.@row = pair.@row;
+					newPair.@col = pair.@col;
+				}
+				//logger.debug("pair: " + pair.toXMLString());
+				//logger.debug("newPair: " + newPair.toXMLString());
+				
+				// available edge types
+				getEdgeTypesByFromToNodeTypes(pair.@row, pair.@col);
+				
+				// selected edge types
+				for each (var edge:XML in newPair.edge){
+					var ed:Object = eu.getEdgeDescription(sm.edgeTypeDescriptions, edge.@type);
+					var e:Object = new Object();
+					e.type = ed.type;
+					e.label = ed.label;
+					e.direction = edge.@direction;
+					selectedEdges.addItem(e);
+				}
+				selectedEdges.sort = gu.getSort("label");
+				selectedEdges.sort.fields.push(new SortField("direction", true, true));
+				selectedEdges.refresh();				
+				
+				// populate ergm parameters
+				var list:XMLList = newPair.param;				
+				if (list.length() > 0) {					
+					var xml:XML = list[0];
+					var isPredefined:Boolean = false;
+					
+					for each (var item:Object in params){
+						var xml2:XML = XML(item.xml);
+						if (xml == xml2) {
+							logger.debug("predefined parameters: " + xml.toXMLString());
+							isPredefined = true;
+							predefinedBtn.selected = true;
+							predefinedBox.selectedItem = item;
+							break;
+						}
+					}
+					
+					if (!isPredefined){
+						logger.debug("user defined parameters: " + xml.toXMLString());
+						userdefinedBtn.selected = true;
+						b1.text = xml.@b1;
+						b2.text = xml.@b2;
+						b3.text = xml.@b3;
+						b4.text = xml.@b4;
+						b5.text = xml.@b5;
+						b6.text = xml.@b6;
+					}
+				}
+				
+				// last calc time
+				var t:String = newPair.@lastCalcTime;
+				if (t != null && t != ""){
+					calcLabel.text = lastCalculateMessage + " " + t;
+				}
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function getEdgeTypesByFromToNodeTypes(fromNodeType:String, toNodeType:String):void{
+				var e:EdgeEvent = new EdgeEvent(EdgeEvent.GET_EDGE_TYPES_BY_FROM_TO_NODE_TYPES);
+				e.data.fromNodeType = fromNodeType;
+				e.data.toNodeType = toNodeType;
+				dispatcher(e);			
+			}
+			
+			[MessageHandler(selector="gotEdgeTypesByFromToNodes")]
+			public function gotEdgeTypes(event:EdgeEvent):void{
+				availableEdges = ArrayCollection(event.data);
+				availableEdges.sort = gu.getSort("label");
+				availableEdges.sort.fields.push(new SortField("direction", true, true));
+				availableEdges.refresh();
+			}
+			
+			private function getLabel(item:Object, column:GridColumn):String{
+				var type:String = item.type;
+				var label:String = item.label;
+				if (type.indexOf("d.") == 0) return "derived::" + label;
+				else return label;
+			}
+			
+			
+			/********************* add/remove edge types **************************/
+			private function addEdgeTypes():void{
+				var items:Vector.<Object> = availableEdgesBox.selectedItems;
+				if (items == null || items.length == 0) {
+					Alert.show(addEdgeMessage);
+					return;
+				}
+				
+				for each (var edge:Object in items){
+					if (contain(selectedEdges, edge)) continue;
+					
+					selectedEdges.addItem(edge);
+					var edgeXml:XML = <edge type={edge.type} direction={edge.direction}/>;
+					newPair.appendChild(edgeXml);
+				}
+				
+				selectedEdges.refresh();
+			}			
+			
+			private function contain(edges:ArrayCollection, edge:Object):Boolean{
+				for each (var e:Object in edges){
+					if (e.type == edge.type && e.direction == edge.direction) return true;
+				}	
+				return false;
+			}
+			
+			private function removeEdgeTypes():void{
+				var items:Vector.<Object> = selectedEdgesBox.selectedItems;
+				if (items == null || items.length == 0) {
+					Alert.show(removeEdgeMessage);
+					return;
+				}
+				
+				for each (var edge:Object in items){
+					selectedEdges.removeItemAt(selectedEdges.getItemIndex(edge));
+					delete newPair.edge.(@type == edge.type && @direction == edge.direction)[0];					
+				}
+				
+				selectedEdges.refresh();
+			}			
+			
+			
+			/********************* controlbar operations **************************/			
+			private function save():void{
+				if (!updateLocalConfig()) return;
+				
+				var event:RecommendationEvent = new RecommendationEvent(RecommendationEvent.UPDATE_REC_CONFIG);
+				event.data.config = sm.recConfigXML.toXMLString();
+				dispatcher(event);
+			}
+
+			private function updateLocalConfig():Boolean{
+				pair.@metric = Constants.ERGM;
+				pair.@dirty = "1";
+				parentButton.label = pair.@metric;
+				
+				gu.removeXMLChildren(pair);
+				for each (var edge:XML in newPair.edge){
+					pair.appendChild(edge);
+				}
+				var xml:XML;				
+				if (predefinedBtn.selected){
+					if (predefinedBox.selectedItem == null){
+						Alert.show(selectPredefinedMessage);
+						return false;
+					}
+					xml = XML(predefinedBox.selectedItem.xml);					
+				} else {
+					xml = <param b1={b1.text} b2={b2.text} b3={b3.text} b4={b4.text} b5={b5.text} b6={b6.text}/>;					
+				}		
+				pair.appendChild(xml);		
+				
+				logger.debug("Updated pair: " + pair.toXMLString());
+				return true;
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function calculate():void{
+				if (true){
+					Alert.show("To Be Implemented.");
+					return;
+				}
+				
+				updateLocalConfig();
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.COMPUTE_RECOMMENDATIONS);
+				e.data.source = source;
+				e.data.row = String(pair.@row);
+				e.data.col = String(pair.@col);		
+				e.data.config = sm.recConfigXML.toXMLString();
+				dispatcher(e);
+				
+				p = new TextDisplayPopup();
+				gu.showPopup(p);
+				p.title = calculationTitle;
+				p.msg = calculationMessage;
+				p.imagesource = sm.baseURL + "/images/calculate.jpg";
+				p.showCloseButton(false);
+			}
+			
+			[MessageHandler(selector="computedRecommendations")]
+			public function computeHandler(event:RecommendationEvent):void{
+				var d:Object = event.data;
+				if (d.source == source && d.row == pair.@row && d.col == pair.@col) {				
+					p.msg = String(event.data.msg);
+					p.textColor = (event.data.success == "1")? 0x006400:0xff0000;
+					p.showCloseButton(true);
+				}
+			}
+			
+			private function export():void{
+				Alert.show("To Be Implemented.");
+				//IOUtil.downloadNetwork(pair.@row, pair.@col, Constants.ERGM, source);
+			}
+			
+			private function upload():void{
+				Alert.show("To Be Implemented.");
+				//IOUtil.uploadMetrics(Constants.ERGM, source);
+			}		
+		]]>
+	</fx:Script>
+	
+	<s:HGroup>
+		<s:DataGrid id="availableEdgesBox" dataProvider="{availableEdges}" 
+					selectionMode="multipleRows" requestedRowCount="8"
+					doubleClickEnabled="true" doubleClick="addEdgeTypes()">
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn id="allEdgeTypesColumn" labelFunction="getLabel" headerText="Available Edge Types" width="300" showDataTips="true" dataTipField="type"/>
+					<s:GridColumn id="directionColumn1" dataField="direction" headerText="Direction" width="100"/>
+				</s:ArrayList>
+			</s:columns>
+		</s:DataGrid>			
+		
+		<s:VGroup height="100%" verticalAlign="middle">
+			<s:Button label="&gt;" click="addEdgeTypes()"/>
+			<s:Button label="&lt;" click="removeEdgeTypes()"/>
+		</s:VGroup>
+		
+		<s:DataGrid id="selectedEdgesBox" dataProvider="{selectedEdges}" 
+					selectionMode="multipleRows" requestedRowCount="8"
+					doubleClickEnabled="true" doubleClick="removeEdgeTypes()">
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn id="selectedEdgeTypesColumn" labelFunction="getLabel" headerText="Selected Edge Types" width="300" showDataTips="true" dataTipField="type"/>
+					<s:GridColumn id="directionColumn2" dataField="direction" headerText="Direction" width="100"/>
+				</s:ArrayList>
+			</s:columns>
+		</s:DataGrid>		
+	</s:HGroup>
+
+	<s:HGroup verticalAlign="baseline">
+		<s:RadioButton id="predefinedBtn" groupName="a" selected="true"/>
+		<s:DropDownList id="predefinedBox" dataProvider="{params}" 
+						labelField="label" width="200" change="predefinedBtn.selected = true">
+			<s:layout>
+				<s:VerticalLayout gap="0" requestedRowCount="12" horizontalAlign="contentJustify"/>
+			</s:layout>
+		</s:DropDownList>
+	</s:HGroup>
+	
+	<s:HGroup verticalAlign="baseline">
+		<s:RadioButton id="userdefinedBtn" groupName="a"/>
+		
+		<s:Label text="B1"/>
+		<s:TextInput id="b1" width="50" focusIn="userdefinedBtn.selected = true"/>
+
+		<s:Label text="B2"/>
+		<s:TextInput id="b2" width="50" focusIn="userdefinedBtn.selected = true"/>
+
+		<s:Label text="B3"/>
+		<s:TextInput id="b3" width="50" focusIn="userdefinedBtn.selected = true"/>
+
+		<s:Label text="B4"/>
+		<s:TextInput id="b4" width="50" focusIn="userdefinedBtn.selected = true"/>
+
+		<s:Label text="B5"/>
+		<s:TextInput id="b5" width="50" focusIn="userdefinedBtn.selected = true"/>
+
+		<s:Label text="B6"/>
+		<s:TextInput id="b6" width="50" focusIn="userdefinedBtn.selected = true"/>				
+	</s:HGroup>			
+	
+	<s:Spacer height="10"/>
+	
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="saveBtn" label="Save" click="save()" toolTip="Save your configuration changes."/>	
+			<s:Button id="closeBtn" label="Close" click="close()"/>	
+			<s:Button id="calculateBtn" label="Calculate" click="calculate()" toolTip="Calculate ERGM metrics based on configuration."/>		
+			<s:Button id="exportBtn" label="Export" click="export()" toolTip="Export data matrix for calculation of parameters and ERGM metrics."/>
+			<s:Button id="importBtn" label="Import" click="upload()" toolTip="Import ERGM metrics from external calculation based on the configuration."/>		
+			<s:Label id="calcLabel" fontStyle="italic"/>
+		</s:HGroup>
+	</s:controlBarContent>
+</s:TitleWindow>

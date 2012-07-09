@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(EditEdgeType);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Bindable]
+			private var etdChanged:Boolean = false;
+			
+			public var selectItemMessage:String = "Please select an edge type first.";
+			public var continueMessage:String = "Are you sure to delete edges of the selected type?";
+			[Bindable]public var edgeChangedMessage:String = "Edge descriptions changed";
+			
+			[Init]
+			public function init():void{
+				logger.info("init");
+			}	
+			
+			private function selectEdgeType():void{
+				if (edgesDg.selectedItem == null) return;
+				edgeLabelTi.text = edgesDg.selectedItem.label;	
+				edgeVerbTi.text = edgesDg.selectedItem.verb;
+			} 
+			
+			private function onEdgeLabelChange():void{
+				var ed:Object = edgesDg.selectedItem;
+				var edgeLabel:String = StringUtil.trim(edgeLabelTi.text);
+				ed.label = edgeLabel;
+				etdChanged = true;
+			}
+			
+			private function onEdgeVerbChange():void{
+				var ed:Object = edgesDg.selectedItem;
+				var edgeVerb:String = StringUtil.trim(edgeVerbTi.text);
+				ed.verb = edgeVerb;
+				etdChanged = true;
+			}
+			
+			private function saveEdgeDescriptions():void{
+				if (!etdChanged) return;
+				var edgeEvent:EdgeEvent = new EdgeEvent(EdgeEvent.SAVE_EDGE_TYPE_DESCRIPTIONS);
+				edgeEvent.data = sm.edgeTypeDescriptions;
+				dispatcher(edgeEvent);
+			}
+			
+			[MessageHandler(selector="edgeTypeDescriptionSaved")]
+			public function onEdgeTypeDescriptionsSaved(e:EdgeEvent):void{
+				etdChanged = false;
+			}
+			
+			///////////////// DELETE EDGES //////////////////////
+			private function tryDeleteEdges():void{
+				if (edgesDg.selectedItem == null) {
+					Alert.show(selectItemMessage);
+					return;
+				}
+				var edgeType:String = String(edgesDg.selectedItem.type);				
+				Alert.show(continueMessage, "", Alert.YES|Alert.NO, this, deleteEdges);	
+			}
+			
+			private function deleteEdges(ce:CloseEvent):void{
+				if (ce.detail == Alert.YES){
+					var edgeType:String = String(edgesDg.selectedItem.type);
+					var event:EdgeEvent = new EdgeEvent(EdgeEvent.DELETE_EDGES_BY_TYPE);
+					event.data = edgeType;
+					dispatcher(event);
+				}
+			}		
+			
+			[MessageHandler(selector="deletedEdgesByType")]
+			public function onEdgeDeleted(e:EdgeEvent):void{
+				gu.hide(edgeLabelItem);
+				gu.hide(edgeVerbItem);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form width="100%" height="100%">				
+		<s:FormItem id="edgeTypeItem" label="Edge Types" width="100%">
+			<s:DataGrid id="edgesDg" 
+						width="500"
+						dataProvider="{sm.edgeTypeDescriptions}" 
+						selectionChange="selectEdgeType()" >
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="" dataField="type" dataTipField="label" showDataTips="true"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>					
+		</s:FormItem>
+		
+		<s:FormItem id="edgeLabelItem" label="Edge Label" width="100%" 
+					visible="{edgesDg.selectedItem != null}"
+					includeInLayout="{edgesDg.selectedItem != null}">
+			<s:TextInput id="edgeLabelTi" width="500" change="onEdgeLabelChange()"/>
+		</s:FormItem>
+		<s:FormItem id="edgeVerbItem" label="Edge Action" width="100%" 
+					visible="{edgesDg.selectedItem != null}"
+					includeInLayout="{edgesDg.selectedItem != null}">
+			<s:TextInput id="edgeVerbTi" width="500" change="onEdgeVerbChange()"/>
+		</s:FormItem>				
+	</s:Form>
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="saveBtn" label="Save" click="saveEdgeDescriptions()"/>
+			<s:Button id="deleteBtn" label="Delete" click="tryDeleteEdges()" toolTip="Delete one or more edge types"/>
+			<s:Label text="{edgeChangedMessage}" color="red" fontStyle="italic" visible="{etdChanged}"/>
+		</s:HGroup>
+	</s:controlBarContent>
+</s:Panel>

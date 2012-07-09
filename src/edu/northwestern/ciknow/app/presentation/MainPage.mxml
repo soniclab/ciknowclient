@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley" xmlns:local="*" 
+		  xmlns:views="edu.northwestern.ciknow.common.l10n.views.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.controls.Alert;
+			import mx.core.mx_internal;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.utils.URLUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(MainPage);
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			private var selectedBtn:Button = null;
+			
+			private function onBtnClick(event:MouseEvent):void
+			{
+				var btn:Button = Button(event.currentTarget);
+				logger.debug("Button Selected: " + btn.id);
+					
+				if (selectedBtn != null) selectedBtn.enabled = true;
+				btn.enabled = false;
+				selectedBtn = btn;
+				
+				var fo:Object = URLUtil.stringToObject(sm.bm.fragment, "&");
+				if (btn == surveyBtn){
+					var surveyUrl:String = sm.baseURL + "/survey.zul";					
+					navigateToURL(new URLRequest(surveyUrl), "_self");
+					fo.m = Constants.M_SURVEY;
+				} else if (btn == reportBtn){
+					viewStack.selectedChild = report;
+					fo.m = Constants.M_REPORT;
+				} else if (btn == visualAnalyticsBtn){
+					viewStack.selectedChild = visualAnalytics;
+					fo.m = Constants.M_VISA;
+				} else if (btn == recommendationBtn){
+					viewStack.selectedChild = recommendation;
+					fo.m = Constants.M_RECOMMENDATION;
+				} else if (btn == administrationBtn){
+					viewStack.selectedChild = administration;
+					fo.m = Constants.M_ADMINISTRATION;
+				} else if (btn == documentationBtn){
+					viewStack.selectedChild = documentation;
+					var docUrl:String = "http://ciknow.northwestern.edu/documentation";					
+					navigateToURL(new URLRequest(docUrl), "_blank");
+					fo.m = Constants.M_DOCUMENTATION;
+				} else {
+					Alert.show("Unrecognized button!");
+				}
+				
+				var f:String = URLUtil.objectToString(fo, "&");
+				sm.bm.setFragment(f);
+				logger.info("Updated fragment: " + f);
+			}
+			
+		]]>
+	</fx:Script>
+	<s:VGroup id="leftMenuBar">
+		<s:VGroup>
+			<s:Button id="administrationBtn"
+					  styleName="menu" width="125"
+					  click="onBtnClick(event)"/>
+			
+			<s:Button id="surveyBtn"
+					  visible="false" includeInLayout="false"
+					  styleName="menu" width="125"
+					  click="onBtnClick(event)"/>
+			
+			<s:Button id="reportBtn"
+					  visible="false" includeInLayout="false"
+					  styleName="menu" width="125"
+					  click="onBtnClick(event)"/>
+			
+			<s:Button id="visualAnalyticsBtn"
+					  visible="false" includeInLayout="false"
+					  styleName="menu" width="125"
+					  click="onBtnClick(event)"/>
+			
+			<s:Button id="recommendationBtn"
+					  visible="false" includeInLayout="false"
+					  styleName="menu" width="125"
+					  click="onBtnClick(event)"/>		
+			
+			<s:Button id="documentationBtn"
+					  styleName="menu" width="125"
+					  click="onBtnClick(event)"/>
+			
+			<s:Button id="logoutBtn"
+					  styleName="menu" width="125"
+					  click="gu.logout()"/>
+		</s:VGroup>
+		
+		<views:LanguageTile width="100%" height="100%"/>
+	</s:VGroup>
+	
+	<mx:ViewStack id="viewStack" width="100%" height="100%">
+		<s:NavigatorContent id="splash" width="100%" height="100%">
+			<local:Splash/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="administration" width="100%" height="100%">
+			<local:Administration/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="survey" width="100%" height="100%">
+			<local:Survey/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="report" width="100%" height="100%">
+			<local:Report/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="visualAnalytics" width="100%" height="100%">
+			<local:VisualAnalytics/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="recommendation" width="100%" height="100%">
+			<local:Recommendation/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="documentation" width="100%" height="100%">
+			<local:Documentation/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:HGroup>

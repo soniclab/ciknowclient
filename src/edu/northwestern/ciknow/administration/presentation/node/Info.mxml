@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+		
+		<mx:StringValidator id="usernameV" source="{usernameTi}" property="text" required="true" maxLength="50"/>
+		<mx:StringValidator id="firstNameV" source="{firstNameTi}" property="text" required="true" triggerEvent="" maxLength="25"/>
+		<mx:StringValidator id="lastNameV" source="{lastNameTi}" property="text" required="true" triggerEvent="" maxLength="25" />	
+		<mx:Glow id="glowImage" duration="1000" 
+				 alphaFrom="1.0" alphaTo="0.3" 
+				 blurXFrom="0.0" blurXTo="50.0" 
+				 blurYFrom="0.0" blurYTo="50.0" 
+				 color="0x00FF00"/>
+		<mx:Glow id="unglowImage" duration="1000" 
+				 alphaFrom="0.3" alphaTo="1" 
+				 blurXFrom="50.0" blurXTo="0" 
+				 blurYFrom="50.0" blurYTo="0" 
+				 color="0x00FF00"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.NodeDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			import spark.events.TextOperationEvent;
+			
+			private static var logger:ILogger = LogUtil.getLog(Info);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			[Bindable]
+			public var pm:NodePM;
+			
+			[Inject]
+			[Bindable]
+			public var sm:SharedModel;
+			
+			[Inject][Bindable]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			private var action:String; 			// for upload photo
+			private var loader:Loader = null; 	// for download photo
+			[Bindable] private var isTypeUser:Boolean = false;
+			
+			[Init]
+			public function init():void{
+				logger.info("init info");
+			}
+			
+			[MessageHandler(selector="fileUploaded")]
+			public function uploadImageHandler(event:GeneralEvent):void{				
+				var urlRequest:URLRequest = URLRequest(event.data.url);				
+				var params:URLVariables = URLVariables(urlRequest.data);
+				if (action == String(params.action)){
+					//var file:FileReference = FileReference(event.data.file);
+					var url:String = "images/photos/" + pm.selectedNode.username + ".jpg";
+					var request:URLRequest = new URLRequest(url);
+					loader.load(request);					
+				}
+			}	
+			
+			[MessageHandler(selector="loadedCurrentNode")]
+			public function onNodeLoaded(event:NodeEvent):void{
+				var node:NodeDTO = pm.selectedNode;
+				if (node == null) {
+					logger.debug("selectedNode=null");
+					return;
+				}
+				
+				var attrs:Object = node.attributes;				
+				typeLabel.text = nu.getNodeTypeDescription(node.type).label + " (" + node.type + ")";
+
+				// login mode
+				var loginMode:String = gu.getAttributeValue(attrs, Constants.NODE_LOGIN_MODE);
+				if (loginMode == Constants.LOGIN_MODE_QUESTION_ONLY) loginModeBox.selectedIndex = 1;
+				else loginModeBox.selectedIndex = 0;
+
+				// load image
+				if (loader == null) loader = new Loader();
+				loader.contentLoaderInfo.addEventListener(Event.COMPLETE, completeHandler);
+				loader.contentLoaderInfo.addEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+				var url:String = "images/photos/" + node.username + ".jpg";
+				var request:URLRequest = new URLRequest(url);
+				loader.load(request);
+				imageBox.addChild(loader);
+
+				// upload image url
+				action = 'photo' + Constants.SEPERATOR + node.username;
+				
+				// is nodeType = user?
+				isTypeUser = (node.type == Constants.NODE_TYPE_USER);
+				
+				// don't allow admin username to be changed.
+				usernameTi.editable = !nu.isAdmin(pm.selectedNode);
+				
+				// select validators
+				pm.infoValidators.splice(0, pm.infoValidators.length);				
+				pm.infoValidators.push(usernameV);
+				if (pm.selectedNode.type == Constants.NODE_TYPE_USER){
+					pm.infoValidators.push(firstNameV);
+					pm.infoValidators.push(lastNameV);
+				}
+				
+				// hide the "check availability" button for synchronized node
+				checkUsernameBtn.visible = false;
+			}
+			
+			private function completeHandler(event:Event):void{
+				logger.info("Loading photo is completed.");
+			}
+			
+			private function ioErrorHandler(event:IOErrorEvent):void{
+				logger.info("Cannot find personal photo, default is used.");
+				var url:String = "images/photos/missing.jpg";
+				var request:URLRequest = new URLRequest(url);
+				loader.load(request);				
+			}
+			
+			
+			private function changeLoginMode():void{
+				pm.selectedNode.attributes[Constants.NODE_LOGIN_MODE] = loginModeBox.selectedItem.key;
+				pm.selectedNode.dirty = true;
+			}
+			
+			private function onNameChange():void{
+				pm.selectedNode.label = lastNameTi.text + ", " + firstNameTi.text;
+				pm.selectedNode.dirty = true;
+			}
+			
+		]]>
+	</fx:Script>
+	
+
+	<s:Form maxWidth="500" height="100%">
+
+		<s:FormItem id="nameItem" label="Name">
+			<s:HGroup verticalAlign="baseline">
+				<s:TextInput id="usernameTi" 
+							 text="@{pm.selectedNode.username}" 
+							 change="pm.selectedNode.dirty = true; checkUsernameBtn.visible = true;"
+							 toolTip="Caution: changing username will make your previously exported data obsolete."/>
+				<s:Button id="checkUsernameBtn" label="Check Availability" 
+						  click="pm.checkUsernameAvailability(StringUtil.trim(usernameTi.text))" 
+						  visible="false"/>
+			</s:HGroup>
+	
+			<s:Label id="nameNote" text="Caution!" fontStyle="italic" color="gray"/>
+		</s:FormItem>		
+		<s:FormItem id="typeItem" label="Type">
+			<s:Label id="typeLabel"/>
+		</s:FormItem>	
+		<s:FormItem id="labelItem" label="Label">
+			<s:TextInput id="labelTi" text="@{pm.selectedNode.label}" change="pm.selectedNode.dirty = true;"/>
+		</s:FormItem>
+		<s:FormItem id="fnItem" label="First Name" includeInLayout="{isTypeUser}" visible="{isTypeUser}">
+			<s:TextInput id="firstNameTi" text="@{pm.selectedNode.firstName}" change="onNameChange()"/>
+		</s:FormItem>		
+		<s:FormItem id="lnItem" label="Last Name" includeInLayout="{isTypeUser}" visible="{isTypeUser}">
+			<s:TextInput id="lastNameTi" text="@{pm.selectedNode.lastName}" change="onNameChange()"/>
+		</s:FormItem>		
+		<s:FormItem id="mnItem" label="Mid Name" includeInLayout="{isTypeUser}" visible="{isTypeUser}">
+			<s:TextInput id="midNameTi" text="@{pm.selectedNode.midName}" change="onNameChange()"/>
+		</s:FormItem>							
+		<s:FormItem id="urlItem" label="URL">
+			<s:TextInput id="urlTi" text="@{pm.selectedNode.uri}" change=" pm.selectedNode.dirty = true;"/>
+		</s:FormItem>
+		<s:FormItem id="loginEnabledItem" label="Login Enabled">
+			<s:CheckBox id="enabledCB" selected="@{pm.selectedNode.enabled}"  change="pm.selectedNode.dirty = true;"/>
+		</s:FormItem>		
+		<s:FormItem id="loginModeItem" label="Login Mode">
+			<s:DropDownList id="loginModeBox" 
+						 dataProvider="{sm.loginModes}" 
+						 change="changeLoginMode()" 
+						 selectedIndex="0" 
+						 labelField="label"/>	
+		</s:FormItem>
+		
+		<s:Spacer height="20"/>
+		
+		<s:FormItem id="viewDetailsItem" label="View Details">
+			<s:Button id="viewDetailsBtn" label="HTML" click="nu.viewNodeHtml(pm.selectedNode.nodeId)"/>
+		</s:FormItem>
+		
+		<s:Spacer height="20"/>
+		
+		<s:FormItem id="photoItem" label="Photo">
+			<s:Button id="photoUploadBtn" label="Upload (*.jpg)" click="iu.uploadImage(action)"/>
+		</s:FormItem>	
+
+	</s:Form>
+	
+	<mx:UIComponent id="imageBox" 
+					width="100%" 
+					height="100%" 
+					click="iu.uploadImage(action)" 
+					rollOverEffect="{glowImage}" 
+					rollOutEffect="{unglowImage}"/>	
+
+</s:HGroup>

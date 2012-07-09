@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.EdgeDTO;
+			import edu.northwestern.ciknow.common.domain.NodeDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.utils.ObjectProxy;
+			
+			private static var logger:ILogger = LogUtil.getLog(Edges);
+			
+			private static const INCOMING:String = "incoming";
+			private static const OUTGOING:String = "outgoing";
+			
+			[Bindable]
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Bindable]
+			[Inject]
+			public var pm:NodePM;
+			
+			[Bindable] private var treeData:ArrayCollection;
+			public var inEdgesData:ObjectProxy;
+			public var outEdgesData:ObjectProxy;
+			private var extraNodeMap:Object;
+			private var showPerceivedEdges:Boolean = true;	
+			
+			[Init]
+			public function init():void{
+				logger.debug("init edges");
+				createUI();
+			}
+			
+			[MessageHandler(selector="loadedCurrentNode")]
+			public function onNodeLoaded(event:NodeEvent):void{
+				createUI();
+			}
+			
+			private function createUI():void{
+				treeData = new ArrayCollection();
+				
+				// construct extraNodeMap
+				extraNodeMap = new Object();
+				for each (var n:NodeDTO in pm.extraNodes){
+					extraNodeMap[n.nodeId.toString()] = n;
+				}
+				
+				// get incoming edges
+				inEdgesData = new ObjectProxy();
+				inEdgesData.label = "Incoming";
+				treeData.addItem(inEdgesData);
+				constructTree(pm.incomingEdges, inEdgesData, INCOMING);
+				
+				// get outgoing edges
+				outEdgesData = new ObjectProxy();
+				outEdgesData.label = "Outgoing";
+				treeData.addItem(outEdgesData);
+				constructTree(pm.outgoingEdges, outEdgesData, OUTGOING);
+				
+				// get undirected edges? (maybe just join incoming/outgoing)	
+			}
+			
+			private function constructTree(edges:ArrayCollection, edgesData:Object, type:String):void{
+				var edge:EdgeDTO;
+				var edgeMap:Object = new Object();
+				var edgesByType:ArrayCollection;
+				
+				// classify by edge type				
+				for each (edge in edges){
+					if (!showPerceivedEdges && edge.creatorId > 0) {
+						logger.debug("perceived edge: " + edge.edgeId);
+						continue;
+					}
+					
+					if (!edgeMap.hasOwnProperty(edge.type)) {
+						edgesByType = new ArrayCollection();
+						edgeMap[edge.type] = edgesByType;
+					}
+					else edgesByType = edgeMap[edge.type];
+					
+					edgesByType.addItem(edge);	
+				}
+				
+				// init the tree
+				var arr:ArrayCollection = new ArrayCollection();
+				edgesData.children = arr;
+				
+				// construct				
+				for (var edgeType:String in edgeMap){
+					edgesByType = edgeMap[edgeType];
+					var item:Object = new Object();
+					item.label = edgeType;
+					var children:ArrayCollection = new ArrayCollection();
+					for each (edge in edgesByType){
+						var edgeItem:Object = new Object();
+						var nodeId:Number = (type == OUTGOING)? edge.toNodeId: edge.fromNodeId;
+						var node:NodeDTO = NodeDTO(extraNodeMap[nodeId.toString()]);
+						var creatorLabel:String = "";
+						var creator:NodeDTO = NodeDTO(extraNodeMap[edge.creatorId.toString()]);
+						if (creator != null) creatorLabel = "[" + String(creator.label) + "] ";
+						edgeItem.label = creatorLabel + node.label;
+						edgeItem.edge = edge;
+						edgeItem.node = node;
+						children.addItem(edgeItem);
+					}
+					item.children = children;
+					arr.addItem(item);
+				}					
+			}	
+			
+			private function onItemDoubleClick(event:MouseEvent):void{
+				var item:Object = edgeTree.selectedItem;
+				var node:NodeDTO = null;
+				if (item.hasOwnProperty("node")) node = NodeDTO(item.node);
+				if (node == null) return;
+				
+				// TODO: display full node information?
+				//Alert.show(node.label);
+				logger.debug("loading node (id=" + node.nodeId + ")");
+			}
+		]]>
+	</fx:Script>
+	
+	<mx:Tree id="edgeTree" dataProvider="{treeData}" showRoot="false"
+			 width="100%" height="100%" 
+			 doubleClick="onItemDoubleClick(event)" doubleClickEnabled="true"/>
+</s:VGroup>

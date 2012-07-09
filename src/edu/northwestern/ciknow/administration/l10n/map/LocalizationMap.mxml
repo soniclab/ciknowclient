@@ -1,0 +1,783 @@
+<?xml version="1.0" encoding="utf-8"?>
+<l10n:LocaleMap 	enableLog="false"
+					xmlns:factory="mx.core.*" 
+					xmlns:mx="http://www.adobe.com/2006/mxml" 
+					xmlns:l10n="http://l10n.babelfx.org/" >
+	
+	<mx:Metadata>
+		[ResourceBundle("admin")]
+	</mx:Metadata>
+	
+	<mx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.administration.presentation.*;
+			import edu.northwestern.ciknow.administration.presentation.node.*;
+			import edu.northwestern.ciknow.administration.presentation.label.*;
+			import edu.northwestern.ciknow.administration.presentation.membership.*;
+			import edu.northwestern.ciknow.administration.presentation.more.*;
+			import edu.northwestern.ciknow.administration.presentation.derivation.*;
+			import edu.northwestern.ciknow.administration.presentation.recommender.*;
+			import edu.northwestern.ciknow.administration.presentation.preferences.*;
+			
+			import org.babelfx.commands.ExternalLocaleCommand;	
+			
+			/* 
+			 * Using compiler arguments -locale=en_US,es_ES,fr_FR,zh_CN -allow-source-path-overlap=true -source-path+=l10n/locale/{locale}
+		     * with the metaTag above forces the compiler to EMBED all locales as compiled resource bundles
+			 * Or use -locale="en_US" without [ResourceBundles] to force runtime loading of external bundles for es_ES, zh_CN, fr_FR
+			 * Note: you must should ANT build scripts to build and deploy the external bundles; see /build/buildResourceBundles.xml
+			 */
+			
+		]]>
+	</mx:Script>
+	
+	<!-- 
+		The command factory instance below allows the l10nInjection engine to load external resource bundles from
+	     a custom deploy directory 'assets/locales/' name encoded by locale code
+	     e.g.  en_US.swf, zh_CN.swf, etc.
+	-->
+	<l10n:commandFactory>
+		 <factory:ClassFactory generator="{ExternalLocaleCommand}">
+			 <factory:properties>
+				 <mx:Object externalPath="assets/locales/\{0\}.swf"/>
+			 </factory:properties>
+		 </factory:ClassFactory>
+	</l10n:commandFactory>	
+
+	<l10n:ResourceInjector bundleName="admin" target="{Administration}">		
+		<l10n:ResourceSetter property="preferencesTab.label" key="tab.preferences"/>
+		<l10n:ResourceSetter property="nodesTab.label" key="tab.nodes"/>
+		<l10n:ResourceSetter property="surveyDesignTab.label" key="tab.surveydesign"/>
+		<l10n:ResourceSetter property="labelsTab.label" key="tab.labels"/>
+		<l10n:ResourceSetter property="derivationTab.label" key="tab.derivation"/>
+		<l10n:ResourceSetter property="importExportTab.label" key="tab.importexport"/>
+		<l10n:ResourceSetter property="recommenderTab.label" key="tab.recommender"/>		
+		<l10n:ResourceSetter property="membershipTab.label" key="tab.membership"/>
+		<l10n:ResourceSetter property="passwordTab.label" key="tab.password"/>
+		<l10n:ResourceSetter property="moreTab.label" key="tab.more"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{Preferences}">	
+		<l10n:ResourceSetter property="generatedPasswordTitle" key="pref.generatedPasswordTitle"/>
+		
+		<l10n:ResourceSetter property="frontPageHeading.label" key="pref.frontPage"/>
+		<l10n:ResourceSetter property="nameItem.label" key="pref.frontPage.projectName"/>
+		<l10n:ResourceSetter property="descriptionItem.label" key="pref.frontPage.projectDescription"/>
+		<l10n:ResourceSetter property="adminEmailItem.label" key="pref.frontPage.adminEmail"/>
+		<l10n:ResourceSetter property="showLoginListItem.label" key="pref.frontPage.showLoginList"/>
+		<l10n:ResourceSetter property="allowSelfRegistrationItem.label" key="pref.frontPage.allowSelfRegistration"/>
+		<l10n:ResourceSetter property="defaultRegistrationGroupItem.label" key="pref.frontPage.defaultRegistrationGroup"/>
+
+		
+		<l10n:ResourceSetter property="passwordHeading.label" key="pref.password"/>
+		<l10n:ResourceSetter property="defaultPasswordItem.label" key="pref.password.default"/>
+		<l10n:ResourceSetter property="defaultPasswordDescription.text" key="pref.password.default.description"/>
+		<l10n:ResourceSetter property="randomPasswordBtn.label" key="pref.password.default.random"/>
+		<l10n:ResourceSetter property="generatePasswordItem.label" key="pref.password.generate"/>
+		<l10n:ResourceSetter property="generatePasswordDescription.text" key="pref.password.generate.description"/>
+		<l10n:ResourceSetter property="generatePasswordBtn.label" key="pref.password.generate.apply"/>
+		<l10n:ResourceSetter property="forceItem.label" key="pref.password.force"/>
+		
+		<l10n:ResourceSetter property="surveyHeading.label" key="pref.survey"/>
+		<l10n:ResourceSetter property="showSurveyItem.label" key="pref.survey.show"/>
+		<l10n:ResourceSetter property="showNavigationItem.label" key="pref.survey.showNavigation"/>
+		<l10n:ResourceSetter property="duringBox.label" key="pref.survey.showNavigation.during"/>
+		<l10n:ResourceSetter property="afterBox.label" key="pref.survey.showNavigation.after"/>
+		<l10n:ResourceSetter property="requireSurveyPasswordItem.label" key="pref.survey.requirePassword"/>
+		<l10n:ResourceSetter property="requireSurveyPasswordDescription.text" key="pref.survey.requirePassword.info"/>
+		
+		<l10n:ResourceSetter property="reportHeading.label" key="pref.report"/>
+		<l10n:ResourceSetter property="showReportItem.label" key="pref.report.show"/>
+		<l10n:ResourceSetter property="showRawAttributesItem.label" key="pref.report.showRawAttributes"/>
+		
+		<l10n:ResourceSetter property="visaHeading.label" key="pref.visa"/>
+		<l10n:ResourceSetter property="showVisaItem.label" key="pref.visa.show"/>
+		<l10n:ResourceSetter property="allowPublishSavedVisItem.label" key="pref.visa.allowPublish"/>
+		
+		<l10n:ResourceSetter property="recommendationHeading.label" key="pref.recommendation"/>
+		<l10n:ResourceSetter property="showRecommendationItem.label" key="pref.recommendation.show"/>
+		
+		<l10n:ResourceSetter property="othersHeading.label" key="pref.others"/>
+		<l10n:ResourceSetter property="loginModeItem.label" key="pref.others.loginMode"/>
+		<l10n:ResourceSetter property="loginModeDescription.text" key="pref.others.loginMode.description"/>
+		<l10n:ResourceSetter property="applyLoginModeBtn.label" key="pref.others.loginMode.apply"/>
+		<l10n:ResourceSetter property="disableOnCompleteItem.label" key="pref.others.disableOnComplete"/>
+		<l10n:ResourceSetter property="disableUserCbox.label" key="pref.others.disableOnComplete.info"/>
+		<l10n:ResourceSetter property="postNoticeItem.label" key="pref.others.postNotice"/>
+		<l10n:ResourceSetter property="noticeBtn.label" key="pref.others.postNotice.edit"/>
+		
+		<l10n:ResourceSetter property="saveBtn.label" key="pref.controlBar.save"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{NoticeEditPopup}">		
+		<l10n:ResourceSetter property="saveMessage" key="pref.noticeEditPopup.saveMessage"/>
+		<l10n:ResourceSetter property="selectAudienceMessage" key="pref.noticeEditPopup.selectAudienceMessage"/>
+		<l10n:ResourceSetter property="selectFrequencyMessage" key="pref.noticeEditPopup.selectFrequencyMessage"/>
+		<l10n:ResourceSetter property="invalidWidthMessage" key="pref.noticeEditPopup.invalidWidthMessage"/>
+		<l10n:ResourceSetter property="invalidHeightMessage" key="pref.noticeEditPopup.invalidHeightMessage"/>
+		
+		<l10n:ResourceSetter property="contentsItem.label" key="pref.noticeEditPopup.contents"/>
+		<l10n:ResourceSetter property="audienceItem.label" key="pref.noticeEditPopup.audience"/>
+		<l10n:ResourceSetter property="frequencyItem.label" key="pref.noticeEditPopup.frequency"/>
+		<l10n:ResourceSetter property="widthItem.label" key="pref.noticeEditPopup.width"/>
+		<l10n:ResourceSetter property="heightItem.label" key="pref.noticeEditPopup.height"/>
+		<l10n:ResourceSetter property="backgroundItem.label" key="pref.noticeEditPopup.background"/>
+		
+		<l10n:ResourceSetter property="updateBtn.label" key="pref.noticeEditPopup.update"/>
+		<l10n:ResourceSetter property="previewBtn.label" key="pref.noticeEditPopup.preview"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="pref.noticeEditPopup.close"/>
+	</l10n:ResourceInjector>
+	
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Node}">		
+		<l10n:ResourceSetter property="warningMessage.text" key="node.warningMessage"/>
+		
+		<l10n:ResourceSetter property="resetBtn.label" key="node.controlBar.reset"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="node.controlBar.save"/>
+		<l10n:ResourceSetter property="newBtn.label" key="node.controlBar.new"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="node.controlBar.delete"/>
+		<l10n:ResourceSetter property="clearBtn.label" key="node.controlBar.clear"/>
+		<l10n:ResourceSetter property="exportBtn.label" key="node.controlBar.export"/>
+		<l10n:ResourceSetter property="importBtn.label" key="node.controlBar.import"/>
+		<l10n:ResourceSetter property="overwriteBtn.label" key="node.controlBar.overwrite"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{NodeSearchPanel}">		
+		<l10n:ResourceSetter property="title" key="node.searchPanel.title"/>
+		<l10n:ResourceSetter property="nodeTypeItem.label" key="node.searchPanel.nodeType"/>
+		<l10n:ResourceSetter property="labelItem.label" key="node.searchPanel.label"/>
+		<l10n:ResourceSetter property="pageSizeItem.label" key="node.searchPanel.pageSize"/>
+		<l10n:ResourceSetter property="searchBtn.label" key="node.searchPanel.search"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{NodeListPanel}">		
+		<l10n:ResourceSetter property="titlePrefix" key="node.listPanel.titlePrefix"/>
+		<l10n:ResourceSetter property="saveOrResetMessage" key="node.listPanel.saveOrResetMessage"/>
+		<l10n:ResourceSetter property="paginator.prevBtn.label" key="node.listPanel.paginator.prev"/>
+		<l10n:ResourceSetter property="paginator.nextBtn.label" key="node.listPanel.paginator.next"/>
+		<l10n:ResourceSetter property="idColumn.headerText" key="node.listPanel.idColumn"/>
+		<l10n:ResourceSetter property="usernameColumn.headerText" key="node.listPanel.usernameColumn"/>
+		<l10n:ResourceSetter property="labelColumn.headerText" key="node.listPanel.labelColumn"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{NodeDetailsPanel}">		
+		<l10n:ResourceSetter property="infoTab.label" key="node.detailsPanel.basic"/>
+		<l10n:ResourceSetter property="addressTab.label" key="node.detailsPanel.address"/>
+		<l10n:ResourceSetter property="attributesTab.label" key="node.detailsPanel.attribute"/>
+		<l10n:ResourceSetter property="edgesTab.label" key="node.detailsPanel.edge"/>
+		<l10n:ResourceSetter property="groupsTab.label" key="node.detailsPanel.group"/>
+		<l10n:ResourceSetter property="rolesTab.label" key="node.detailsPanel.role"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Info}">		
+		<l10n:ResourceSetter property="nameItem.label" key="node.detailsPanel.basic.name"/>
+		<l10n:ResourceSetter property="checkUsernameBtn.label" key="node.detailsPanel.basic.name.available"/>
+		<l10n:ResourceSetter property="nameNote.text" key="node.detailsPanel.basic.name.note"/>
+		<l10n:ResourceSetter property="typeItem.label" key="node.detailsPanel.basic.type"/>
+		<l10n:ResourceSetter property="labelItem.label" key="node.detailsPanel.basic.label"/>
+		<l10n:ResourceSetter property="fnItem.label" key="node.detailsPanel.basic.firstName"/>
+		<l10n:ResourceSetter property="lnItem.label" key="node.detailsPanel.basic.lastName"/>
+		<l10n:ResourceSetter property="mnItem.label" key="node.detailsPanel.basic.midName"/>
+		<l10n:ResourceSetter property="urlItem.label" key="node.detailsPanel.basic.url"/>
+		<l10n:ResourceSetter property="loginEnabledItem.label" key="node.detailsPanel.basic.loginEnabled"/>
+		<l10n:ResourceSetter property="loginModeItem.label" key="node.detailsPanel.basic.loginMode"/>
+		<l10n:ResourceSetter property="viewDetailsItem.label" key="node.detailsPanel.basic.viewDetails"/>
+		<l10n:ResourceSetter property="photoItem.label" key="node.detailsPanel.basic.photo"/>
+		<l10n:ResourceSetter property="photoUploadBtn.label" key="node.detailsPanel.basic.photo.upload"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Address}">		
+		<l10n:ResourceSetter property="addr1Item.label" key="node.detailsPanel.address.addr1"/>
+		<l10n:ResourceSetter property="addr2Item.label" key="node.detailsPanel.address.addr2"/>
+		<l10n:ResourceSetter property="cityItem.text" key="node.detailsPanel.address.city"/>
+		<l10n:ResourceSetter property="stateItem.label" key="node.detailsPanel.address.state"/>
+		<l10n:ResourceSetter property="zipcodeItem.label" key="node.detailsPanel.address.zipcode"/>
+		<l10n:ResourceSetter property="countryItem.label" key="node.detailsPanel.address.country"/>
+		<l10n:ResourceSetter property="emailItem.label" key="node.detailsPanel.address.email"/>
+		<l10n:ResourceSetter property="phoneItem.label" key="node.detailsPanel.address.phone"/>
+		<l10n:ResourceSetter property="cellItem.label" key="node.detailsPanel.address.cell"/>
+		<l10n:ResourceSetter property="faxItem.label" key="node.detailsPanel.address.fax"/>
+		<l10n:ResourceSetter property="departmentItem.label" key="node.detailsPanel.address.department"/>
+		<l10n:ResourceSetter property="organizationItem.label" key="node.detailsPanel.address.organization"/>
+		<l10n:ResourceSetter property="unitItem.label" key="node.detailsPanel.address.unit"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Attributes}">		
+		<l10n:ResourceSetter property="keyColumn.headerText" key="node.detailsPanel.attribute.keyColumn"/>
+		<l10n:ResourceSetter property="valueColumn.headerText" key="node.detailsPanel.attribute.valueColumn"/>
+		<l10n:ResourceSetter property="keyItem.label" key="node.detailsPanel.attribute.key"/>
+		<l10n:ResourceSetter property="valueItem.label" key="node.detailsPanel.attribute.value"/>
+		<l10n:ResourceSetter property="actionItem.label" key="node.detailsPanel.attribute.action"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="node.detailsPanel.attribute.save"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="node.detailsPanel.attribute.delete"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Edges}">		
+		<l10n:ResourceSetter property="inEdgesData.label" key="node.detailsPanel.edge.incoming"/>
+		<l10n:ResourceSetter property="outEdgesData.label" key="node.detailsPanel.edge.outgoing"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Groups}">		
+		<l10n:ResourceSetter property="userGroups.currentGroupsColumn.headerText" key="node.detailsPanel.group.current"/>
+		<l10n:ResourceSetter property="userGroups.allGroupsColumn.headerText" key="node.detailsPanel.group.all"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Roles}">		
+		<l10n:ResourceSetter property="userRoles.currentRolesColumn.headerText" key="node.detailsPanel.role.current"/>
+		<l10n:ResourceSetter property="userRoles.allRolesColumn.headerText" key="node.detailsPanel.role.all"/>
+	</l10n:ResourceInjector>
+	
+	
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Labels}">		
+		<l10n:ResourceSetter property="promptMessage" key="labels.promptMessage"/>
+		<l10n:ResourceSetter property="editNodeTypeMessage" key="labels.editNodeTypeMessage"/>
+		<l10n:ResourceSetter property="editEdgeTypeMessage" key="labels.editEdgeTypeMessage"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{EditNodeType}">		
+		<l10n:ResourceSetter property="nodeChangedMessage" key="labels.node.nodeChangedMessage"/>
+		
+		<l10n:ResourceSetter property="nodeTypeItem.label" key="labels.node.type"/>
+		<l10n:ResourceSetter property="nodeLabelItem.label" key="labels.node.label"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="labels.node.save"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{EditEdgeType}">		
+		<l10n:ResourceSetter property="edgeChangedMessage" key="labels.edge.edgeChangedMessage"/>
+		
+		<l10n:ResourceSetter property="edgeTypeItem.label" key="labels.edge.type"/>
+		<l10n:ResourceSetter property="edgeLabelItem.label" key="labels.edge.label"/>
+		<l10n:ResourceSetter property="edgeVerbItem.label" key="labels.edge.verb"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="labels.edge.save"/>
+	</l10n:ResourceInjector>
+
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Derivation}">		
+		<l10n:ResourceSetter property="prompt" key="derivation.prompt"/>
+		<l10n:ResourceSetter property="deriveEdgesByRelation" key="derivation.deriveEdgesByRelation"/>
+		<l10n:ResourceSetter property="deriveEdgesByAttribute" key="derivation.deriveEdgesByAttribute"/>
+		<l10n:ResourceSetter property="deriveEdgesByContactChooser" key="derivation.deriveEdgesByContactChooser"/>
+		<l10n:ResourceSetter property="deriveEdgesBySymmetrization" key="derivation.deriveEdgesBySymmetrization"/>
+		<l10n:ResourceSetter property="deriveAttributesByProduct" key="derivation.deriveAttributesByProduct"/>
+		<l10n:ResourceSetter property="deriveAttributesByAnalytics" key="derivation.deriveAttributesByAnalytics"/>
+		<l10n:ResourceSetter property="deriveAttributesByEquation" key="derivation.deriveAttributesByEquation"/>
+		<l10n:ResourceSetter property="deriveAttributesBySocialInfluence" key="derivation.deriveAttributesBySocialInfluence"/>
+		<l10n:ResourceSetter property="deriveAttributesBySurveyProgress" key="derivation.deriveAttributesBySurveyProgress"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{DerivationJobPopup}">		
+		<l10n:ResourceSetter property="requireNameMessage" key="derivation.requireNameMessage"/>
+		<l10n:ResourceSetter property="requireDescriptionMessage" key="derivation.requireDescriptionMessage"/>
+		
+		<l10n:ResourceSetter property="runOnceBtn.label" key="derivation.config.runOnce"/>
+		<l10n:ResourceSetter property="recurringBtn.label" key="derivation.config.recuringTask"/>
+		<l10n:ResourceSetter property="nameItem.label" key="derivation.config.name"/>
+		<l10n:ResourceSetter property="typeItem.label" key="derivation.config.type"/>
+		<l10n:ResourceSetter property="descriptionItem.label" key="derivation.config.description"/>
+		<l10n:ResourceSetter property="creatorItem.label" key="derivation.config.creator"/>
+		<l10n:ResourceSetter property="scheduleItem.label" key="derivation.config.schedule"/>
+		<l10n:ResourceSetter property="enabledItem.label" key="derivation.config.enabled"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="derivation.config.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="derivation.config.close"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveEdgesByRelation}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.edgeByRelation.instruction"/>
+		
+		<l10n:ResourceSetter property="selectItemMessage" key="derivation.edgeByRelation.selectItemMessage"/>
+		
+		<l10n:ResourceSetter property="relationAItem.label" key="derivation.edgeByRelation.relationA"/>
+		<l10n:ResourceSetter property="fromNodeFilterA.label" key="derivation.edgeByRelation.fromNodeFilter"/>
+		<l10n:ResourceSetter property="toNodeFilterA.label" key="derivation.edgeByRelation.toNodeFilter"/>
+		<l10n:ResourceSetter property="edgeFilterA.label" key="derivation.edgeByRelation.edgeFilter"/>
+		<l10n:ResourceSetter property="directionA.label" key="derivation.edgeByRelation.direction"/>
+		
+		<l10n:ResourceSetter property="operatorItem.label" key="derivation.edgeByRelation.operator"/>
+		<l10n:ResourceSetter property="keepDiagonalBox.label" key="derivation.edgeByRelation.keepDiagonal"/>
+
+		<l10n:ResourceSetter property="relationBItem.label" key="derivation.edgeByRelation.relationB"/>
+		<l10n:ResourceSetter property="fromNodeFilterB.label" key="derivation.edgeByRelation.fromNodeFilter"/>
+		<l10n:ResourceSetter property="toNodeFilterB.label" key="derivation.edgeByRelation.toNodeFilter"/>
+		<l10n:ResourceSetter property="edgeFilterB.label" key="derivation.edgeByRelation.edgeFilter"/>
+		<l10n:ResourceSetter property="directionB.label" key="derivation.edgeByRelation.direction"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveEdgesByAttribute}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.edgeByAttribute.instruction"/>
+		
+		<l10n:ResourceSetter property="selectItemMessage" key="derivation.edgeByAttribute.selectItemMessage"/>
+		
+		<l10n:ResourceSetter property="nodeTypesItem.label" key="derivation.edgeByAttribute.nodeTypes"/>
+		<l10n:ResourceSetter property="questionItem.label" key="derivation.edgeByAttribute.question"/>
+		<l10n:ResourceSetter property="choicesItem.label" key="derivation.edgeByAttribute.choices"/>
+		<l10n:ResourceSetter property="choicesNote.text" key="derivation.edgeByAttribute.choicesNote"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveEdgesByContactChooser}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.edgeByCC.instruction"/>
+		
+		<l10n:ResourceSetter property="selectItemMessage" key="derivation.edgeByCC.selectItemMessage"/>
+		
+		<l10n:ResourceSetter property="selectCCItem.label" key="derivation.edgeByCC.selectCC"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveEdgesBySymmetrization}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.edgeBySymmetrization.instruction"/>
+		
+		<l10n:ResourceSetter property="selectEdgeTypeMessage" key="derivation.edgeBySymmetrization.selectEdgeTypeMessage"/>
+		<l10n:ResourceSetter property="selectStrategyMessage" key="derivation.edgeBySymmetrization.selectStrategyMessage"/>
+		
+		<l10n:ResourceSetter property="edgeTypesItem.label" key="derivation.edgeBySymmetrization.edgeTypes"/>
+		<l10n:ResourceSetter property="strategyItem.label" key="derivation.edgeBySymmetrization.strategy"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveAttributeByProduct}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.attributeByProduct.instruction"/>
+		
+		<l10n:ResourceSetter property="requiredAttributeNameMessage" key="derivation.attributeByProduct.requiredAttributeNameMessage"/>
+		<l10n:ResourceSetter property="requiredNodeTypeMessage" key="derivation.attributeByProduct.requiredNodeTypeMessage"/>
+		<l10n:ResourceSetter property="requiredCategoricalAttributeMessage" key="derivation.attributeByProduct.requiredCategoricalAttributeMessage"/>
+		
+		<l10n:ResourceSetter property="nameItem.label" key="derivation.attributeByProduct.name"/>
+		<l10n:ResourceSetter property="checkAvailabilityBtn.label" key="derivation.attributeByProduct.checkAvailability"/>
+		<l10n:ResourceSetter property="nodeTypesItem.label" key="derivation.attributeByProduct.nodeTypes"/>
+		<l10n:ResourceSetter property="selectCategoricalAttributesItem.label" key="derivation.attributeByProduct.selectCategoricalAttributes"/>
+		<l10n:ResourceSetter property="refreshBtn.label" key="derivation.attributeByProduct.refresh"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveAttributeByAnalytics}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.attributeByAnalytics.instruction"/>
+		
+		<l10n:ResourceSetter property="requireQuestionShortNameMessage" key="derivation.attributeByAnalytics.requireQuestionShortNameMessage"/>
+		<l10n:ResourceSetter property="duplicatedQuestionShortNameMessage" key="derivation.attributeByAnalytics.duplicatedQuestionShortNameMessage"/>
+		<l10n:ResourceSetter property="requireFieldNameMessage" key="derivation.attributeByAnalytics.requireFieldNameMessage"/>
+		<l10n:ResourceSetter property="requireNetworkMessage" key="derivation.attributeByAnalytics.requireNetworkMessage"/>
+		<l10n:ResourceSetter property="requireAnalyticsNameMessage" key="derivation.attributeByAnalytics.requireAnalyticsNameMessage"/>
+		
+		<l10n:ResourceSetter property="shortNameItem.label" key="derivation.attributeByAnalytics.shortName"/>
+		<l10n:ResourceSetter property="fieldNameItem.label" key="derivation.attributeByAnalytics.fieldName"/>
+		<l10n:ResourceSetter property="networksItem.label" key="derivation.attributeByAnalytics.networks"/>
+		<l10n:ResourceSetter property="edgeOperatorItem.label" key="derivation.attributeByAnalytics.edgesOperator"/>
+		<l10n:ResourceSetter property="calcItem.label" key="derivation.attributeByAnalytics.calculate"/>
+		<l10n:ResourceSetter property="undirectedOperatorLabel.text" key="derivation.attributeByAnalytics.undirectedOperator"/>
+		<l10n:ResourceSetter property="selectAanlyticsItem.label" key="derivation.attributeByAnalytics.selectAnalytics"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveAttributeByEquation}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.attributeByEquation.instruction"/>
+		
+		<l10n:ResourceSetter property="requireShortNameMessage" key="derivation.attributeByEquation.requireShortNameMessage"/>
+		<l10n:ResourceSetter property="duplicateShortNameMessage" key="derivation.attributeByEquation.duplicateShortNameMessage"/>
+		<l10n:ResourceSetter property="requireFieldNameMessage" key="derivation.attributeByEquation.requireFieldNameMessage"/>
+		<l10n:ResourceSetter property="requireNodeTypesMessage" key="derivation.attributeByEquation.requireNodeTypesMessage"/>
+		<l10n:ResourceSetter property="requireEquationMessage" key="derivation.attributeByEquation.requireEquationMessage"/>
+		<l10n:ResourceSetter property="requireAttributeMessage" key="derivation.attributeByEquation.requireAttributeMessage"/>
+		
+		<l10n:ResourceSetter property="shortNameItem.label" key="derivation.attributeByEquation.shortName"/>
+		<l10n:ResourceSetter property="fieldNameItem.label" key="derivation.attributeByEquation.fieldName"/>
+		<l10n:ResourceSetter property="nodeTypesItem.label" key="derivation.attributeByEquation.nodeTypes"/>
+		<l10n:ResourceSetter property="leftHandSideItem.label" key="derivation.attributeByEquation.leftHandSide"/>
+		<l10n:ResourceSetter property="leftRefreshBtn.label" key="derivation.attributeByEquation.refresh"/>
+		<l10n:ResourceSetter property="leftDetailsBtn.label" key="derivation.attributeByEquation.details"/>
+		<l10n:ResourceSetter property="operatorItem.label" key="derivation.attributeByEquation.operator"/>
+		<l10n:ResourceSetter property="rightHandSideItem.label" key="derivation.attributeByEquation.rightHandSide"/>
+		<l10n:ResourceSetter property="rightRefreshBtn.label" key="derivation.attributeByEquation.refresh"/>
+		<l10n:ResourceSetter property="rightDetailsBtn.label" key="derivation.attributeByEquation.details"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveAttributeBySocialInfluence}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.attributeBySI.instruction"/>
+		
+		<l10n:ResourceSetter property="requireShortNameMessage" key="derivation.attributeBySI.requireShortNameMessage"/>
+		<l10n:ResourceSetter property="duplicateShortNameMessage" key="derivation.attributeBySI.duplicateShortNameMessage"/>
+		<l10n:ResourceSetter property="requireFieldNameMessage" key="derivation.attributeBySI.requireFieldNameMessage"/>
+		<l10n:ResourceSetter property="requireNodeTypesMessage" key="derivation.attributeBySI.requireNodeTypesMessage"/>
+		<l10n:ResourceSetter property="requireAttributeMessage" key="derivation.attributeBySI.requireAttributeMessage"/>
+		
+		<l10n:ResourceSetter property="shortNameItem.label" key="derivation.attributeBySI.shortName"/>
+		<l10n:ResourceSetter property="fieldNameItem.label" key="derivation.attributeBySI.fieldName"/>
+		<l10n:ResourceSetter property="nodeTypesItem.label" key="derivation.attributeBySI.nodeTypes"/>
+		<l10n:ResourceSetter property="directionItem.label" key="derivation.attributeBySI.direction"/>
+		<l10n:ResourceSetter property="networksItem.label" key="derivation.attributeBySI.networks"/>
+		<l10n:ResourceSetter property="getEdgeTypesBtn.label" key="derivation.attributeBySI.getNetworks"/>
+		<l10n:ResourceSetter property="attributeItem.label" key="derivation.attributeBySI.attribute"/>
+		<l10n:ResourceSetter property="getAttributesBtn.label" key="derivation.attributeBySI.getAttributes"/>
+		<l10n:ResourceSetter property="detailsBtn.label" key="derivation.attributeBySI.details"/>
+		
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{DeriveAttributeBySurveyProgress}">		
+		<l10n:ResourceSetter property="instruction" key="derivation.attributeByProgress.instruction"/>
+		<l10n:ResourceSetter property="configBtn.label" key="derivation.config"/>
+		<l10n:ResourceSetter property="deriveBtn.label" key="derivation.derive"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{NodeAttributeDetailsPopup}">		
+		<l10n:ResourceSetter property="title" key="derivation.nodeAttrDetails.title"/>
+		<l10n:ResourceSetter property="distinctRatingMessage" key="derivation.nodeAttrDetails.distinctRatingMessage"/>
+		<l10n:ResourceSetter property="distinctChoiceMessage" key="derivation.nodeAttrDetails.distinctChoiceMessage"/>
+		<l10n:ResourceSetter property="distinctAttributeMessage" key="derivation.nodeAttrDetails.distinctAttributeMessage"/>
+		<l10n:ResourceSetter property="attributeValuesItem.label" key="derivation.nodeAttrDetails.attributeValues"/>
+		<l10n:ResourceSetter property="assignedValueItem.label" key="derivation.nodeAttrDetails.assignedValue"/>
+		<l10n:ResourceSetter property="updateBtn.label" key="derivation.nodeAttrDetails.update"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="derivation.nodeAttrDetails.close"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{NodeAttributeNameCheckPopup}">		
+		<l10n:ResourceSetter property="titlePrefix" key="derivation.nodeAttrCheck.titlePrefix"/>
+		<l10n:ResourceSetter property="availableMessage" key="derivation.nodeAttrCheck.availableMessage"/>
+		<l10n:ResourceSetter property="notAvailableMessage" key="derivation.nodeAttrCheck.notAvailableMessage"/>
+		<l10n:ResourceSetter property="deleteMessage" key="derivation.nodeAttrCheck.deleteMessage"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="derivation.nodeAttrCheck.delete"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="derivation.nodeAttrCheck.close"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{ImportExport}">	
+		<l10n:ResourceSetter property="selectQuestionMessage" key="data.selectQuestionMessage"/>
+		
+		<l10n:ResourceSetter property="noticeItem.label" key="data.notice"/>
+		<l10n:ResourceSetter property="noticeMessage" key="data.notice.message"/>
+		
+		<l10n:ResourceSetter property="frontLogoItem.label" key="data.frontLogo"/>
+		<l10n:ResourceSetter property="frontLogoBtn.label" key="data.frontLogo.upload"/>
+		<l10n:ResourceSetter property="pauseLogoItem.label" key="data.pauseLogo"/>
+		<l10n:ResourceSetter property="pauseLogoBtn.label" key="data.pauseLogo.upload"/>
+		<l10n:ResourceSetter property="finishLogoItem.label" key="data.finishLogo"/>
+		<l10n:ResourceSetter property="finishLogoBtn.label" key="data.finishLogo.upload"/>
+		<l10n:ResourceSetter property="photosItem.label" key="data.photos"/>
+		<l10n:ResourceSetter property="photosBtn.label" key="data.photos.upload"/>
+		<l10n:ResourceSetter property="codeBookItem.label" key="data.codeBook"/>
+		<l10n:ResourceSetter property="codeBookBtn.label" key="data.codeBook.view"/>
+		<l10n:ResourceSetter property="metaDataItem.label" key="data.metadata"/>
+		<l10n:ResourceSetter property="metaDataImportBtn.label" key="data.metadata.import"/>
+		<l10n:ResourceSetter property="metaDataOverwriteBox.label" key="data.metadata.import.overwrite"/>
+		<l10n:ResourceSetter property="metaDataExportBtn.label" key="data.metadata.export"/>
+
+		<l10n:ResourceSetter property="graphmlItem.label" key="data.graphml"/>
+		<l10n:ResourceSetter property="graphmlImportBtn.label" key="data.graphml.import"/>
+		<l10n:ResourceSetter property="graphmlOverwriteBox.label" key="data.graphml.import.overwrite"/>
+		<l10n:ResourceSetter property="graphmlFormatBtn.label" key="data.graphml.import.format"/>
+		<l10n:ResourceSetter property="graphmlExportBtn.label" key="data.graphml.export"/>
+		<l10n:ResourceSetter property="graphmlRoundtripEnabledBox.label" key="data.graphml.export.roundtripEnabled"/>
+		
+		<l10n:ResourceSetter property="dlItem.label" key="data.dl"/>
+		<l10n:ResourceSetter property="dlImportBtn.label" key="data.dl.import"/>
+		<l10n:ResourceSetter property="dlExportBtn.label" key="data.dl.export"/>
+		<l10n:ResourceSetter property="labelEmbeddedBox.label" key="data.dl.export.labelEmbedded"/>
+		<l10n:ResourceSetter property="showIsolateBox.label" key="data.dl.export.showIsolate"/>
+		
+		<l10n:ResourceSetter property="contactsItem.label" key="data.contacts"/>
+		<l10n:ResourceSetter property="contactsInstructionBtn.label" key="data.contacts.instruction"/>
+		<l10n:ResourceSetter property="contactsInstructionTitle" key="data.contacts.instruction.title"/>
+		<l10n:ResourceSetter property="contactsInstructionMessage" key="data.contacts.instruction.message"/>
+		<l10n:ResourceSetter property="contactsTemplateBtn.label" key="data.contacts.template"/>
+		<l10n:ResourceSetter property="contactsImportBtn.label" key="data.contacts.import"/>
+		<l10n:ResourceSetter property="contactsOverwriteBox.label" key="data.contacts.import.overwrite"/>
+		<l10n:ResourceSetter property="contactsExportBtn.label" key="data.contacts.export"/>
+				
+		<l10n:ResourceSetter property="attributesItem.label" key="data.attributes"/>
+		<l10n:ResourceSetter property="attributesImportBtn.label" key="data.attributes.import"/>
+		<l10n:ResourceSetter property="attributesSampleBtn.label" key="data.attributes.sample"/>
+		
+		<l10n:ResourceSetter property="nodeGroupsItem.label" key="data.nodeGroups"/>
+		<l10n:ResourceSetter property="nodeGroupsImportBtn.label" key="data.nodeGroups.import"/>
+		<l10n:ResourceSetter property="nodeGroupsExportBtn.label" key="data.nodeGroups.export"/>		
+		
+		<l10n:ResourceSetter property="nodeRolesItem.label" key="data.nodeRoles"/>
+		<l10n:ResourceSetter property="nodeRolesImportBtn.label" key="data.nodeRoles.import"/>
+		<l10n:ResourceSetter property="nodeRolesExportBtn.label" key="data.nodeRoles.export"/>
+		
+		<l10n:ResourceSetter property="allQuestionsItem.label" key="data.allQuestions"/>
+		<l10n:ResourceSetter property="allQuestionsImportBtn.label" key="data.allQuestions.import"/>
+		<l10n:ResourceSetter property="allQuestionsExportBtn.label" key="data.allQuestions.export"/>
+		<l10n:ResourceSetter property="allQuestionsExportNamedBy.text" key="data.allQuestions.export.namedBy"/>
+		<l10n:ResourceSetter property="exportAllByNameBtn.label" key="data.allQuestions.export.namedBy.name"/>
+		<l10n:ResourceSetter property="exportAllByIdBtn.label" key="data.allQuestions.export.namedBy.id"/>
+		<l10n:ResourceSetter property="exportAllBySequenceNumberBtn.label" key="data.allQuestions.export.namedBy.sn"/>
+		
+		<l10n:ResourceSetter property="questionItem.label" key="data.question"/>
+		<l10n:ResourceSetter property="questionImportBtn.label" key="data.question.import"/>
+		<l10n:ResourceSetter property="questionExportBtn.label" key="data.question.export"/>
+		<l10n:ResourceSetter property="questionExportNamedBy.text" key="data.question.export.namedBy"/>
+		<l10n:ResourceSetter property="exportQuestionByNameBtn.label" key="data.question.export.namedBy.name"/>
+		<l10n:ResourceSetter property="exportQuestionByIdBtn.label" key="data.question.export.namedBy.id"/>
+		<l10n:ResourceSetter property="exportQuestionBySequenceNumberBtn.label" key="data.question.export.namedBy.sn"/>
+		<l10n:ResourceSetter property="questionExportFormat.text" key="data.question.export.format"/>
+		<l10n:ResourceSetter property="exportMatrixBtn.label" key="data.question.export.format.matrix"/>
+		<l10n:ResourceSetter property="exportListBtn.label" key="data.question.export.format.list"/>
+		<l10n:ResourceSetter property="keepEmptyPrivateGroupBox.label" key="data.question.export.keepEmptyPG"/>
+		<l10n:ResourceSetter property="removeNonRespondentBox.label" key="data.question.export.removeNonRespondent"/>
+		<l10n:ResourceSetter property="exportByColumnBox.label" key="data.question.export.exportByColumn"/>
+		
+		<l10n:ResourceSetter property="selectGroupMessage" key="data.nodeData.selectGroupMessage"/>
+		<l10n:ResourceSetter property="nodeDataItem.label" key="data.nodeData.nodeData"/>
+		<l10n:ResourceSetter property="nodeDataImportBtn.label" key="data.nodeData.import"/>
+		<l10n:ResourceSetter property="nodeDataExportBtn.label" key="data.nodeData.export"/>
+		<l10n:ResourceSetter property="nodeDataPrettyBox.label" key="data.nodeData.export.pretty"/>
+	</l10n:ResourceInjector>
+	
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Recommender}">		
+		<l10n:ResourceSetter property="prompt" key="rec.prompt"/>
+		<l10n:ResourceSetter property="idMessage" key="rec.idMessage"/>
+		<l10n:ResourceSetter property="seMessage" key="rec.seMessage"/>
+		<l10n:ResourceSetter property="algorithm" key="rec.algorithm"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{MetricsConfig}">		
+		<l10n:ResourceSetter property="calculationTitle" key="rec.config.calculate.title"/>
+		<l10n:ResourceSetter property="calculationMessage" key="rec.config.calculate.message"/>
+		
+		<l10n:ResourceSetter property="resetBtn.label" key="rec.config.reset"/>
+		<l10n:ResourceSetter property="calculateBtn.label" key="rec.config.calculate"/>
+		<l10n:ResourceSetter property="dirtyOnlyBox.label" key="rec.config.dirtyMessage"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{MetricsConfigPopup}">
+		<l10n:ResourceSetter property="similarityBtn.label" key="rec.configPopup.similarity"/>
+		<l10n:ResourceSetter property="spBtn.label" key="rec.configPopup.sp"/>
+		<l10n:ResourceSetter property="ergmBtn.label" key="rec.configPopup.ergm"/>
+		<l10n:ResourceSetter property="nextBtn.label" key="rec.configPopup.next"/>
+		<l10n:ResourceSetter property="cancelBtn.label" key="rec.configPopup.cancel"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{MetricsShortestPathPopup}">
+		<l10n:ResourceSetter property="removeEdgeMessage" key="rec.spPopup.removeEdgeMessage"/>
+		<l10n:ResourceSetter property="addEdgeMessage" key="rec.spPopup.addEdgeMessage"/>
+		<l10n:ResourceSetter property="lastCalculateMessage" key="rec.spPopup.lastCalculateMessage"/>
+		<l10n:ResourceSetter property="calculationTitle" key="rec.spPopup.calculate.title"/>
+		<l10n:ResourceSetter property="calculationMessage" key="rec.spPopup.calculate.message"/>
+		
+		<l10n:ResourceSetter property="allEdgeTypesColumn.headerText" key="rec.spPopup.allEdgeTypes"/>
+		<l10n:ResourceSetter property="selectedEdgeTypesColumn.headerText" key="rec.spPopup.selectedEdgeTypes"/>
+		
+		<l10n:ResourceSetter property="universalBox.label" key="rec.spPopup.universal"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="rec.spPopup.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="rec.spPopup.close"/>
+		<l10n:ResourceSetter property="calculateBtn.label" key="rec.spPopup.calculate"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{MetricsErgmPopup}">
+		<l10n:ResourceSetter property="removeEdgeMessage" key="rec.ergmPopup.removeEdgeMessage"/>
+		<l10n:ResourceSetter property="addEdgeMessage" key="rec.ergmPopup.addEdgeMessage"/>
+		<l10n:ResourceSetter property="lastCalculateMessage" key="rec.ergmPopup.lastCalculateMessage"/>
+		<l10n:ResourceSetter property="selectPredefinedMessage" key="rec.ergmPopup.selectPredefinedMessage"/>
+		<l10n:ResourceSetter property="calculationTitle" key="rec.ergmPopup.calculate.title"/>
+		<l10n:ResourceSetter property="calculationMessage" key="rec.ergmPopup.calculate.message"/>
+		
+		<l10n:ResourceSetter property="allEdgeTypesColumn.headerText" key="rec.ergmPopup.allEdgeTypes"/>
+		<l10n:ResourceSetter property="directionColumn1.headerText" key="rec.ergmPopup.direction"/>
+		<l10n:ResourceSetter property="selectedEdgeTypesColumn.headerText" key="rec.ergmPopup.selectedEdgeTypes"/>
+		<l10n:ResourceSetter property="directionColumn2.headerText" key="rec.ergmPopup.direction"/>
+
+		<l10n:ResourceSetter property="saveBtn.label" key="rec.ergmPopup.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="rec.ergmPopup.close"/>
+		<l10n:ResourceSetter property="calculateBtn.label" key="rec.ergmPopup.calculate"/>
+		<l10n:ResourceSetter property="exportBtn.label" key="rec.ergmPopup.export"/>
+		<l10n:ResourceSetter property="importBtn.label" key="rec.ergmPopup.import"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{MetricsSimilarityPopup}">
+		<l10n:ResourceSetter property="selectColumnMessage" key="rec.similarityPopup.selectColumnMessage"/>
+		<l10n:ResourceSetter property="lastCalculateMessage" key="rec.similarityPopup.lastCalculateMessage"/>
+		<l10n:ResourceSetter property="calculationTitle" key="rec.similarityPopup.calculate.title"/>
+		<l10n:ResourceSetter property="calculationMessage" key="rec.similarityPopup.calculate.message"/>
+		
+		<l10n:ResourceSetter property="metricLabel.text" key="rec.similarityPopup.metric"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="rec.similarityPopup.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="rec.similarityPopup.close"/>
+		<l10n:ResourceSetter property="calculateBtn.label" key="rec.similarityPopup.calculate"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{MetricsSimilarityEdgesPopup}">
+		<l10n:ResourceSetter property="removeEdgeMessage" key="rec.smEdgesPopup.removeEdgeMessage"/>
+		<l10n:ResourceSetter property="addEdgeMessage" key="rec.smEdgesPopup.addEdgeMessage"/>
+		
+		<l10n:ResourceSetter property="allEdgeTypesColumn.headerText" key="rec.smEdgesPopup.allEdgeTypes"/>
+		<l10n:ResourceSetter property="directionColumn1.headerText" key="rec.smEdgesPopup.direction"/>
+		<l10n:ResourceSetter property="selectedEdgeTypesColumn.headerText" key="rec.smEdgesPopup.selectedEdgeTypes"/>
+		<l10n:ResourceSetter property="directionColumn2.headerText" key="rec.smEdgesPopup.direction"/>
+		
+		<l10n:ResourceSetter property="closeBtn.label" key="rec.smEdgesPopup.close"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{AlgorithmConfig}">		
+		<l10n:ResourceSetter property="implementationItem.label" key="rec.alg.implement"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="rec.alg.save"/>
+	</l10n:ResourceInjector>
+	
+	
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Membership}">		
+		<l10n:ResourceSetter property="prompt" key="member.prompt"/>
+		<l10n:ResourceSetter property="groupManager" key="member.groupManager"/>
+		<l10n:ResourceSetter property="roleManager" key="member.roleManager"/>
+		<l10n:ResourceSetter property="invitation" key="member.invitation"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Group}">		
+		<l10n:ResourceSetter property="selectGroupMessage" key="member.group.selectGroupMessage"/>
+		<l10n:ResourceSetter property="deleteGroupMessage" key="member.group.deleteGroupMessage"/>
+		<l10n:ResourceSetter property="systemGroupMessage" key="member.group.systemGroupMessage"/>
+		<l10n:ResourceSetter property="showPrivateGroupLabel" key="member.group.showPrivateGroupLabel"/>
+		<l10n:ResourceSetter property="hidePrivateGroupLabel" key="member.group.hidePrivateGroupLabel"/>
+		<l10n:ResourceSetter property="groupColumn.headerText" key="member.group.groupColumn"/>
+		<l10n:ResourceSetter property="currentGroupNodesColumnPrefix" key="member.group.currentGroupNodesColumnPrefix"/>
+		<l10n:ResourceSetter property="availableNodesColumn.headerText" key="member.group.availableNodesColumn"/>
+		<l10n:ResourceSetter property="newBtn.label" key="member.group.new"/>
+		<l10n:ResourceSetter property="changeGroupNameBtn.label" key="member.group.changeGroupName"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="member.group.delete"/>
+		<l10n:ResourceSetter property="toggleBtn.label" key="member.group.showPrivateGroupLabel"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{GroupCreatePopup}">		
+		<l10n:ResourceSetter property="title" key="member.group.createPopup.title"/>
+		<l10n:ResourceSetter property="nameItem.label" key="member.group.createPopup.name"/>
+		<l10n:ResourceSetter property="createBtn.label" key="member.group.createPopup.create"/>
+		<l10n:ResourceSetter property="cancelBtn.label" key="member.group.createPopup.cancel"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{GroupUpdatePopup}">		
+		<l10n:ResourceSetter property="title" key="member.group.updatePopup.title"/>
+		<l10n:ResourceSetter property="oldNameItem.label" key="member.group.updatePopup.oldName"/>
+		<l10n:ResourceSetter property="newNameItem.label" key="member.group.updatePopup.newName"/>
+		<l10n:ResourceSetter property="updateBtn.label" key="member.group.updatePopup.update"/>
+		<l10n:ResourceSetter property="cancelBtn.label" key="member.group.updatePopup.cancel"/>
+		<l10n:ResourceSetter property="duplicateGroupMessage" key="member.group.updatePopup.duplicateGroupMessage"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{Role}">		
+		<l10n:ResourceSetter property="selectRoleMessage" key="member.role.selectRoleMessage"/>
+		<l10n:ResourceSetter property="deleteRoleMessage" key="member.role.deleteRoleMessage"/>
+		<l10n:ResourceSetter property="systemRoleMessage" key="member.role.systemRoleMessage"/>
+		<l10n:ResourceSetter property="roleColumn.headerText" key="member.role.roleColumn"/>
+		<l10n:ResourceSetter property="currentRoleNodesColumnPrefix" key="member.role.currentRoleNodesColumnPrefix"/>
+		<l10n:ResourceSetter property="availableNodesColumn.headerText" key="member.role.availableNodesColumn"/>
+		<l10n:ResourceSetter property="newBtn.label" key="member.role.new"/>
+		<l10n:ResourceSetter property="changeRoleNameBtn.label" key="member.role.changeRoleName"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="member.role.delete"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{RoleCreatePopup}">		
+		<l10n:ResourceSetter property="title" key="member.role.createPopup.title"/>
+		<l10n:ResourceSetter property="nameItem.label" key="member.role.createPopup.name"/>
+		<l10n:ResourceSetter property="createBtn.label" key="member.role.createPopup.create"/>
+		<l10n:ResourceSetter property="cancelBtn.label" key="member.role.createPopup.cancel"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{RoleUpdatePopup}">		
+		<l10n:ResourceSetter property="title" key="member.role.updatePopup.title"/>
+		<l10n:ResourceSetter property="oldNameItem.label" key="member.role.updatePopup.oldName"/>
+		<l10n:ResourceSetter property="newNameItem.label" key="member.role.updatePopup.newName"/>
+		<l10n:ResourceSetter property="updateBtn.label" key="member.role.updatePopup.update"/>
+		<l10n:ResourceSetter property="cancelBtn.label" key="member.role.updatePopup.cancel"/>
+		<l10n:ResourceSetter property="duplicateRoleMessage" key="member.role.updatePopup.duplicateRoleMessage"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Invite}">		
+		<l10n:ResourceSetter property="selectRecipientMessage" key="member.invite.selectRecipientMessage"/>
+		<l10n:ResourceSetter property="selectedContactsPrefix" key="member.invite.selectedContactsPrefix"/>
+		<l10n:ResourceSetter property="availableContactsPrefix" key="member.invite.availableContactsPrefix"/>
+		<l10n:ResourceSetter property="continueBtn.label" key="member.invite.continue"/>
+		<l10n:ResourceSetter property="uploadBtn.label" key="member.invite.downloadTemplate"/>
+		<l10n:ResourceSetter property="downloadBtn.label" key="member.invite.uploadTemplate"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{InvitePopup}">		
+		<l10n:ResourceSetter property="title" key="member.invitePopup.title"/>
+		<l10n:ResourceSetter property="subjectPrefix" key="member.invitePopup.subjectPrefix"/>
+		<l10n:ResourceSetter property="emptySubjectMessage" key="member.invitePopup.emptySubjectMessage"/>
+		<l10n:ResourceSetter property="invalidEmailPrefix" key="member.invitePopup.invalidEmailPrefix"/>
+		
+		<l10n:ResourceSetter property="mailToDescription" key="member.invitePopup.mailToDescription"/>
+		<l10n:ResourceSetter property="finishedMessage" key="member.invitePopup.finishedMessage"/>
+		<l10n:ResourceSetter property="completedMessage" key="member.invitePopup.completedMessage"/>
+		<l10n:ResourceSetter property="notCompletedMessage" key="member.invitePopup.notCompletedMessage"/>
+		<l10n:ResourceSetter property="notStartedMessage" key="member.invitePopup.notStartedMessage"/>
+		
+		<l10n:ResourceSetter property="sendBtn.label" key="member.invitePopup.send"/>
+		<l10n:ResourceSetter property="cancelBtn.label" key="member.invitePopup.cancel"/>
+	</l10n:ResourceInjector>
+
+	
+	<l10n:ResourceInjector bundleName="admin" target="{Password}">		
+		<l10n:ResourceSetter property="changePasswordHeading.label" key="pw.changePassword"/>
+		<l10n:ResourceSetter property="currentPasswordItem.label" key="pw.currentPassword"/>
+		<l10n:ResourceSetter property="newPasswordItem.label" key="pw.newPassword"/>
+		<l10n:ResourceSetter property="confirmPasswordItem.label" key="pw.confirmPassword"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="pw.save"/>
+		
+		<l10n:ResourceSetter property="otherChangePasswordHeading.label" key="pw.otherChangePassword"/>
+		<l10n:ResourceSetter property="otherUsernameItem.label" key="pw.otherUsername"/>
+		<l10n:ResourceSetter property="otherNewPasswordItem.label" key="pw.otherNewPassword"/>
+		<l10n:ResourceSetter property="otherConfirmPasswordItem.label" key="pw.otherConfirmPassword"/>		
+		<l10n:ResourceSetter property="otherSaveBtn.label" key="pw.save"/>
+		
+		<l10n:ResourceSetter property="incorrectPasswordMessage" key="pw.incorrectPasswordMessage"/>
+		<l10n:ResourceSetter property="passwordNotMatchMessage" key="pw.passwordNotMatchMessage"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="admin" target="{More}">		
+		<l10n:ResourceSetter property="prompt" key="more.prompt"/>
+		<l10n:ResourceSetter property="visualizationColorSettings" key="more.visualizationColorSettings"/>
+		<l10n:ResourceSetter property="scheduledJobSettings" key="more.scheduledJobSettings"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{VisColorSettings}">		
+		<l10n:ResourceSetter property="nodeColorsColumn.headerText" key="more.visColorSettings.nodeColorsColumn"/>
+		<l10n:ResourceSetter property="addNodeColorBtn.label" key="more.visColorSettings.addNodeColor"/>
+		<l10n:ResourceSetter property="removeNodeColorBtn.label" key="more.visColorSettings.removeNodeColor"/>
+		<l10n:ResourceSetter property="groupColorsColumn.headerText" key="more.visColorSettings.groupColorsColumn"/>
+		<l10n:ResourceSetter property="addGroupColorBtn.label" key="more.visColorSettings.addGroupColor"/>
+		<l10n:ResourceSetter property="removeGroupColorBtn.label" key="more.visColorSettings.removeGroupColor"/>
+		<l10n:ResourceSetter property="edgeColorsColumn.headerText" key="more.visColorSettings.edgeColorsColumn"/>
+		<l10n:ResourceSetter property="addEdgeColorBtn.label" key="more.visColorSettings.addEdgeColor"/>
+		<l10n:ResourceSetter property="removeEdgeColorBtn.label" key="more.visColorSettings.removeEdgeColor"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="more.visColorSettings.save"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="admin" target="{JobSettings}">		
+		<l10n:ResourceSetter property="nameColumn.headerText" key="more.jobSettings.name"/>
+		<l10n:ResourceSetter property="typeColumn.headerText" key="more.jobSettings.type"/>
+		<l10n:ResourceSetter property="creatorColumn.headerText" key="more.jobSettings.creator"/>
+		<l10n:ResourceSetter property="scheduleColumn.headerText" key="more.jobSettings.schedule"/>
+		<l10n:ResourceSetter property="enabledColumn.headerText" key="more.jobSettings.enabled"/>
+		
+		<l10n:ResourceSetter property="nameItem.label" key="more.jobSettings.name"/>
+		<l10n:ResourceSetter property="typeItem.label" key="more.jobSettings.type"/>
+		<l10n:ResourceSetter property="creatorItem.label" key="more.jobSettings.creator"/>
+		<l10n:ResourceSetter property="scheduleItem.label" key="more.jobSettings.schedule"/>
+		<l10n:ResourceSetter property="enabledItem.label" key="more.jobSettings.enabled"/>
+		<l10n:ResourceSetter property="descriptionItem.label" key="more.jobSettings.description"/>
+		<l10n:ResourceSetter property="creationTimeItem.label" key="more.jobSettings.creationTime"/>
+		<l10n:ResourceSetter property="lastRunTimeItem.label" key="more.jobSettings.lastRunTime"/>
+		
+		<l10n:ResourceSetter property="refreshBtn.label" key="more.jobSettings.refresh"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="more.jobSettings.save"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="more.jobSettings.delete"/>
+	</l10n:ResourceInjector>
+</l10n:LocaleMap>

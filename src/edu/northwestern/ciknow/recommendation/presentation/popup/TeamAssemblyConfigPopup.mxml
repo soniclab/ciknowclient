@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   xmlns:parsley="http://www.spicefactory.org/parsley"
+			   creationComplete="init()" close="close()"
+			   title="Team Assembly Configuration">
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:NumberValidator id="diversityV" source="{diversityTi}" property="text" required="true" maxValue="1" minValue="0" domain="real"/>
+		<s:NumberValidator id="similarityV" source="{similarityTi}" property="text" required="true" maxValue="1" minValue="0" domain="real"/>
+		<s:NumberValidator id="densityV" source="{densityTi}" property="text" required="true" maxValue="1" minValue="0" domain="real"/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.FieldDTO;
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ISort;
+			import mx.controls.Alert;
+			import mx.effects.easing.Back;
+			import mx.events.DragEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			import mx.validators.Validator;
+			
+			private var logger:ILogger = LogUtil.getLog(TeamAssemblyConfigPopup);
+			
+			[Bindable] 
+			private var skills:ArrayCollection = new ArrayCollection();			
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Bindable] 
+			public var diversityQuestion:QuestionDTO;
+			
+			public var selectItemMessage:String = "Please select at least one item.";
+			public var invalidInputMessage:String = "There is invalid input.";
+			public var diversityTooSmallMessage:String = "Diversity attribute cannot be negative.";
+			public var diversityTooLargeMessage:String = "Diversity attribute cannot be larger than 1.";
+			public var invalidDiversitySumMessage:String = "Sum of priority weights must be 1";
+			public var invalidSumMessage:String = "Sum of diversity, similarity and density must be 1";
+			
+			[Bindable]public var diversityQuestionPrefix:String = "Diversity Question:";
+			
+			private function init():void{		
+				PopUpManager.centerPopUp(this);		
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.GET_TEAM_ASSEMBLY_CONFIG);
+				e.data.questionShortName = diversityQuestion.shortName;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotTeamAssemblyConfig")]
+			public function configHandler(e:RecommendationEvent):void{
+				var data:Object = e.data;
+				
+				diversityTi.text = data.diversity;
+				similarityTi.text = data.similarity;
+				densityTi.text = data.density;	
+				
+				var skillList:ArrayCollection = ArrayCollection(data.skills);
+				var skill:Object;
+				var field:FieldDTO;
+				if (skillList == null || skillList.length == 0){
+					logger.debug("creating skills based on fields...");
+					skills.removeAll();
+					var weight:Number = 1.0/diversityQuestion.fields.length;
+					for each (field in diversityQuestion.fields){
+						skill = new Object();
+						skill.qShortName = diversityQuestion.shortName;
+						//skill.sequenceNumber = String(field.sequenceNumber);
+						skill.sequenceNumber = String(diversityQuestion.fields.getItemIndex(field) + 1);
+						skill.name = qu.makeFieldKey(diversityQuestion, field);
+						skill.label = field.label;
+						skill.weight = weight.toString();						
+						skills.addItem(skill);
+					}
+				} else {
+					logger.debug("creating skills based on server settings...");
+					var max:Number = getMaxSequenceNumber(skillList);
+					for each (field in diversityQuestion.fields){
+						var skillName:String = qu.makeFieldKey(diversityQuestion, field);
+						skill = getSkillByName(skillList, skillName);
+						if (skill == null){
+							logger.debug("creating new skill based on new field: " + field.label);
+							skill = new Object();
+							skill.qShortName = diversityQuestion.shortName;
+							max += 1;
+							skill.sequenceNumber = String(max);
+							skill.name = skillName;
+							skill.label = field.label;
+							skill.weight = "0";							
+						}
+						skills.addItem(skill);
+					}
+				}
+				
+				updateDiversitySum();
+				updateSum();							
+			}	
+			
+			private function save():void{
+				var validators:Array = [diversityV, similarityV, densityV];
+				var results:Array = Validator.validateAll(validators);
+				if (results.length > 0){
+					Alert.show(invalidInputMessage);
+					return;
+				}
+				
+				if (!updateDiversitySum()) return;
+				
+				if (!updateSum()) return;								
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.SAVE_TEAM_ASSEMBLY_CONFIG);
+				e.data.diversity = StringUtil.trim(diversityTi.text);
+				e.data.similarity = StringUtil.trim(similarityTi.text);
+				e.data.density = StringUtil.trim(densityTi.text);
+				e.data.skills = skills;
+				e.data.questionShortName = diversityQuestion.shortName;
+				dispatcher(e);
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+
+			/************************ helper functions ****************************************/
+			private function getSkillByName(skills:ArrayCollection, name:String):Object{
+				for each (var skill:Object in skills){
+					if (skill.name == name) return skill;
+				}
+				return null;
+			}
+			
+			private function getMaxSequenceNumber(skills:ArrayCollection):int{
+				var sn:Number = 0;
+				for each (var skill:Object in skills){
+					var s:Number = Number(skill.sequenceNumber);
+					if (sn < s) sn = s;
+				}
+				return sn;
+			}
+			
+			private function updateDiversitySum():Boolean{
+				var total:Number = 0.0;
+				for each (var skill:Object in skills){
+					var weight:Number = Number(skill.weight);
+					if (weight < 0) {
+						Alert.show(diversityTooSmallMessage);
+						return false;
+					}
+					if (weight > 1) {
+						Alert.show(diversityTooLargeMessage);
+						return false;
+					} 					
+					total += weight;
+				}
+				
+				if (Math.abs(total - 1) < 0.000001) {
+					return true;
+				}
+				else {
+					Alert.show(invalidDiversitySumMessage);
+					return false;
+				}				
+			}	 
+			
+			private function updateSum():Boolean{
+				var a:Number = Number(diversityTi.text);
+				var b:Number = Number(similarityTi.text);
+				var c:Number = Number(densityTi.text);
+				var total:Number = a + b + c;
+				
+				if (Math.abs(total - 1) < 0.000001) {
+					sum.setStyle("color", "green");
+					sum.text = "1.00";
+					return true;
+				}
+				else {
+					sum.setStyle("color", "red");
+					sum.text = total.toPrecision(3);
+					Alert.show(invalidSumMessage);
+					return false;
+				}				
+			}		
+			
+			private function getWeightLabel(item:Object, column:GridColumn):String{
+				var weight:Number = Number(item.weight);
+				return weight.toFixed(3);
+			}
+			
+			private function weightSortFunction(obj1:Object, obj2:Object):int{
+				var w1:Number = Number(obj1.weight);
+				var w2:Number = Number(obj2.weight);
+				if (w1 < w2) return -1;
+				else if (w1 > w2) return 1;
+				else return 0;
+			}
+			
+			private function assignEqualWeights():void{
+				var items:Vector.<Object> = dg.selectedItems;
+				if (items == null || items.length == 0){
+					Alert.show(selectItemMessage);
+					return;
+				}
+				
+				var weight:Number = 1.0/items.length;
+				for each (var skill:Object in skills){
+					if (items.indexOf(skill) >= 0){
+						skill.weight = weight.toString();
+					} else skill.weight = "0";
+					
+					// notify view update
+					dg.dataProvider.itemUpdated(skill, "weight"); 
+				}
+				
+				logger.debug("assigned equal weights: " + weight);
+			}	
+			
+		]]>
+	</fx:Script>
+	
+	<s:Label id="msg" visible="false" includeInLayout="false"/>
+	<s:Form>
+		<s:FormItem id="diversityItem" label="Diversity">
+			<s:TextInput id="diversityTi"/>			
+		</s:FormItem>
+		<s:FormItem id="similarityItem" label="Similarity">
+			<s:TextInput id="similarityTi"/>	
+		</s:FormItem>
+		<s:FormItem id="densityItem" label="Density">
+			<s:TextInput id="densityTi"/>			
+		</s:FormItem>	
+		<s:FormItem id="sumItem" label="Sum">
+			<s:Label id="sum"/>
+		</s:FormItem>			
+	</s:Form>
+	
+	<s:Spacer height="20"/>
+	
+	<s:Label text="{diversityQuestionPrefix} {diversityQuestion.label}" fontWeight="bold"/>
+			
+	<s:Label id="diversityNote" text="You can assign equal weights to selected items, or click the weight value and edit directly."/>
+	
+	<s:DataGrid id="dg" width="100%" height="100%" 
+				dataProvider="{skills}" editable="true" 
+				selectionMode="multipleRows">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="attributeColumn" headerText="Diversity Attribute" dataField="label" editable="false"/>
+				<s:GridColumn id="weightColumn" headerText="Priority Weight" dataField="weight" editable="true" 
+								  labelFunction="getWeightLabel" sortCompareFunction="weightSortFunction"/>
+			</s:ArrayList>			
+		</s:columns>
+	</s:DataGrid>	
+	
+	<s:controlBarContent>				
+		<s:Button id="closeBtn" label="Close" click="close()"/>
+		<s:Button id="setEqualWeightsBtn" label="Set Equal Weights" click="assignEqualWeights()"/>
+		<s:Button id="saveBtn" label="Save" click="save()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

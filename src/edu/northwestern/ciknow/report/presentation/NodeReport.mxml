@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel  xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" styleName="headlessPanel"		  
+		  xmlns:components="org.flashcommander.components.*"
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+		
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			
+			private static const NULL:Object = {type:"----", label:"----"};
+			private static var logger:ILogger = LogUtil.getLog(NodeReport);
+			[Bindable] private var nodeTypes:ArrayCollection = new ArrayCollection();
+			[Bindable] private var nodes:ArrayCollection = new ArrayCollection();
+			
+			
+			[Inject]
+			[Bindable]
+			public var sm:SharedModel;
+		
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var nodeUtil:NodeUtil;
+			
+			public var nodeAbsenceMessage:String = "Node with given label doesn't exist. Please try a different one.";
+			
+			[Init]
+			public function init():void{	
+				
+				logger.debug("initializing...");				
+				
+				if(sm.nodeMap==null){
+					var e:NodeEvent = new NodeEvent(NodeEvent.GET_PLAIN_NODES);
+					dispatcher(e);
+				}
+				else{
+					finishInit();			
+				}
+		
+			}			
+		
+			
+			[MessageHandler(selector="gotPlainNodes")]
+			public function gotPlainNodes():void{
+				
+				finishInit();
+			}
+			
+			
+			private function finishInit():void{
+				
+				nodeTypes.removeAll();		
+				nodeTypes.addItem(NULL);
+				for each (var ntd:Object in sm.nodeTypeDescriptions){
+					nodeTypes.addItem(ntd);
+				}
+				nodeTypeFilter.selectedItem = NULL;
+				
+				filterByType();
+				
+				logger.debug("initialized.");
+			}
+			
+			
+			private function filterByType():void{
+			
+				var nodeType:String = nodeTypeFilter.selectedItem.type as String;
+				nodes = new ArrayCollection();
+				for each (var node:Object in sm.nodeMap){
+					if (nodeType == NULL.type || nodeType == node.type) nodes.addItem(node);
+				}
+			
+			}	
+			
+			
+			private function selectNode():void{
+				var node:Object = nodeDg.selectedItem;
+				if (node == null) {
+					Alert.show("No node is selected.");
+					return;
+				}
+				
+				nodeUtil.viewNodeHtml(Number(node.nodeId));
+			}	
+			
+			
+			private function searchNodeByLabel():void{
+				var nodeLabel:String = labelFinder.text;
+				var node:Object = nodeUtil.getNodeByLabel(nodeLabel);
+				if (node == null) {
+					Alert.show(nodeAbsenceMessage);
+					return;
+				}
+				
+				nodeDg.selectedIndex = nodes.getItemIndex(node);
+				nodeUtil.viewNodeHtml(Number(node.nodeId));
+			}		
+			
+			
+			private function getNodeTypeLabelFromNode(item:Object, column:GridColumn):String{
+				var type:String = String(item.type);
+				return nodeUtil.getNodeTypeDescription(type).label;
+			}	
+			
+			
+		]]>	
+	</fx:Script>
+	
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<s:Form>
+		<s:FormItem id="filterByNodeTypeItem" label="Filter by Node Type">
+			<s:DropDownList  id="nodeTypeFilter" 
+							 dataProvider="{nodeTypes}" 
+							 labelField="label"
+							 width="400"
+							 change="filterByType()"/>
+		</s:FormItem>
+		
+		<s:FormItem id="searchByLabelItem" label="Search By Label">
+			<s:HGroup>
+				<components:AutoComplete id="labelFinder"  
+										 prefixOnly="false" 
+										 requireSelection="true"
+										 dataProvider="{sm.allNodeLabels}" 
+										 width="400" />
+				<s:Button id="viewBtn" click="searchNodeByLabel()" label="View"/>	
+			</s:HGroup>
+		</s:FormItem>
+	</s:Form>	
+	
+	<mx:HBox width="100%" height="20" verticalAlign="middle" styleName="info">
+		<s:Label id="viewDetailsNote" text="Double Click Each Row To View Details"/>
+	</mx:HBox>
+	
+	<s:DataGrid id="nodeDg" 
+				width="100%" 
+				height="100%"
+				dataProvider="{nodes}"
+				doubleClickEnabled="true" 
+				doubleClick="selectNode()">
+		<s:columns> 
+			<s:ArrayList>
+				<s:GridColumn id="idColumn" headerText="ID" dataField="nodeId" width="40"/> 
+				<s:GridColumn id="typeColumn" headerText="Type" labelFunction="getNodeTypeLabelFromNode" width="200"/> 
+				<s:GridColumn id="labelColumn" headerText="Label" dataField="label"/>
+			</s:ArrayList>
+		</s:columns> 
+	</s:DataGrid> 	
+</s:Panel>

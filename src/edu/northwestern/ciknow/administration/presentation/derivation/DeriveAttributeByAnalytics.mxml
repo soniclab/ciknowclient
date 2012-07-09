@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%"
+					   title="Derive Attributes by Analytics">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.utils.StringUtil;		
+			
+			[Bindable] private var directedAnalyticNames:ArrayCollection = 
+				new ArrayCollection([{name:"inDegree", label:"In Degree"},
+				{name:"outDegree", label:"Out Degree"},
+				{name:"inCloseness", label:"In Closeness"},
+				{name:"outCloseness", label:"Out Closeness"},
+				{name:"betweenness", label:"Betweenness"},
+				{name:"scanning", label:"Scanning"},
+				{name:"pageRank", label:"Page Rank"},
+				{name:"clusteringCoefficient", label:"Clustering Coefficient"}]);
+			
+			[Bindable] private var indirectedAnalyticNames:ArrayCollection = 
+				new ArrayCollection([{name:"outDegree", label:"Degree"},
+				{name:"outCloseness", label:"Closeness"},
+				{name:"betweenness", label:"Betweenness"},
+				{name:"scanning", label:"Scanning"},
+				{name:"pageRank", label:"Page Rank"},
+				{name:"clusteringCoefficient", label:"Clustering Coefficient"}]);
+			
+			[Bindable] private var directions:ArrayCollection = new ArrayCollection(["Directed", "Undirected"]);
+			[Bindable] private var undirectedOperators:ArrayCollection = new ArrayCollection(["AND", "OR"]);
+			
+			public var requireQuestionShortNameMessage:String = "Please specify question short name.";
+			public var duplicatedQuestionShortNameMessage:String = "Question shortName is already used.";
+			public var requireFieldNameMessage:String = "Please specify field name.";
+			public var requireNetworkMessage:String = "Please specify network(s) first.";
+			public var requireAnalyticsNameMessage:String = "Please select an analytics name.";
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveAttributeByAnalytics);
+				super.init();
+				this.derivationType = Constants.DERIVE_ATTRIBUTE_BY_ANALYTICS;
+			}
+			
+			public override function derive():void{
+				var questionShortName:String = StringUtil.trim(analyticsQuestionShortName.text);
+				if (questionShortName == "") {
+					Alert.show(requireQuestionShortNameMessage);
+					return;
+				}
+				var q:QuestionDTO = qu.getQuestionByShortName(sm.questions, questionShortName);
+				if (q != null){
+					Alert.show(duplicatedQuestionShortNameMessage);	
+					return;
+				}
+				
+				var fieldName:String = StringUtil.trim(analyticsFieldName.text);
+				if (fieldName == "") {
+					Alert.show(requireFieldNameMessage);
+					return;
+				}
+				
+				var eds:Vector.<Object> = networkBox.selectedItems;
+				if (eds == null || eds.length == 0) {
+					Alert.show(requireNetworkMessage);
+					return;
+				}
+				
+				if (analyticsBox.selectedItem == null){
+					Alert.show(requireAnalyticsNameMessage);
+					return;
+				}
+				
+				var e:NodeEvent = new NodeEvent(NodeEvent.DERIVE_BY_ANALYTICS);
+				e.data = new Object();
+				e.data.questionShortName = questionShortName;
+				e.data.fieldName = fieldName;
+				var edgeTypes:ArrayCollection = eu.getEdgeTypes(eds);				
+				e.data.edgeTypes = edgeTypes;
+				e.data.operator = edgeOperator.selected?"and":"or";
+				e.data.direction = String(graphDirection.selectedIndex + 1);
+				e.data.undirectedOperator = String(undirectedOperatorBox.selectedItem);
+				e.data.analyticName = analyticsBox.selectedItem.name;				
+				e.data.job = job;
+				
+				dispatcher(e);			
+			}
+			
+			
+			private function changeDirection():void{
+				if (graphDirection.selectedIndex == 0) analyticsBox.dataProvider = directedAnalyticNames;
+				else analyticsBox.dataProvider = indirectedAnalyticNames;
+				
+				if (graphDirection.selectedIndex == 1){
+					undirectedOperator.visible = true;
+					undirectedOperator.includeInLayout = true;
+				} else {
+					undirectedOperator.visible = false;
+					undirectedOperator.includeInLayout = false;					
+				}				
+			}
+
+		]]>
+	</fx:Script>
+
+	<s:Label text="{instruction}"/>
+	
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="shortNameItem" label="Question Short Name" >
+			<s:TextInput id="analyticsQuestionShortName" width="500"/>
+		</s:FormItem>				
+		<s:FormItem id="fieldNameItem" label="Field Name">
+			<s:TextInput id="analyticsFieldName" width="500"/>				
+		</s:FormItem>
+		<s:FormItem id="networksItem" label="Networks" width="100%">
+			<s:DataGrid id="networkBox" 
+						 dataProvider="{sm.edgeTypeDescriptions}" 
+						 selectionMode="multipleRows" 
+						 width="500" requestedRowCount="7">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="label" headerText=""/>
+					</s:ArrayList>					
+				</s:columns>						
+			</s:DataGrid>
+		</s:FormItem>					
+		<s:FormItem id="edgeOperatorItem" label="Edges Operator">
+			<s:HGroup verticalAlign="baseline">
+				<s:RadioButton id="edgeOperator" label="AND" groupName="eo"/>
+				<s:RadioButton label="OR" groupName="eo" selected="true"/>				
+			</s:HGroup>
+		</s:FormItem>								
+		<s:FormItem id="calcItem" label="Calculate As">
+			<s:VGroup>
+				<s:DropDownList id="graphDirection" 
+								dataProvider="{directions}" 
+								selectedIndex="0" 
+								width="500"
+								change="changeDirection()"/>	
+				<s:VGroup id="undirectedOperator"
+						  visible="false" 
+						  includeInLayout="false" >
+					<s:Label id="undirectedOperatorLabel" text="Undirected Operator" toolTip="Operator for converting directed into undirected network."/>
+					<s:DropDownList id="undirectedOperatorBox" 
+									dataProvider="{undirectedOperators}"
+									width="500" 
+									selectedIndex="1"/>
+				</s:VGroup>
+			</s:VGroup>
+		</s:FormItem>	
+		<s:FormItem id="selectAanlyticsItem" label="Select Analytics">
+			<s:DropDownList id="analyticsBox" 
+						 dataProvider="{directedAnalyticNames}"
+						 width="500" />					
+		</s:FormItem>			
+	</s:Form>
+</derivation:DeriveBase>

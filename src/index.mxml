@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   preloader="edu.northwestern.ciknow.app.preloader.CIKNOWPreloader" 			 
+			   xmlns:presentation="edu.northwestern.ciknow.app.presentation.*" 
+			   xmlns:parsley="http://www.spicefactory.org/parsley" 
+			   xmlns:cairngorm="http://ns.adobe.com/cairngorm" 
+			   xmlns:map="edu.northwestern.ciknow.app.l10n.map.*" 
+			   minHeight="1" minWidth="1">
+	<fx:Style source="ciknow.css"/>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.app.AppContext;
+			import edu.northwestern.ciknow.common.l10n.views.assets.LocaleAssets;
+			import edu.northwestern.ciknow.app.presentation.PasswordChangePopup;
+			import edu.northwestern.ciknow.app.presentation.PasswordVerifyPopup;
+			import edu.northwestern.ciknow.common.domain.*;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.popup.NoticePopup;
+			import edu.northwestern.ciknow.common.util.*;
+			
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.BrowserChangeEvent;
+			import mx.events.CloseEvent;
+			import mx.events.PropertyChangeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.managers.BrowserManager;
+			import mx.managers.IBrowserManager;
+			import mx.utils.URLUtil;
+			
+			import org.babelfx.events.LocaleEvent;
+			import org.spicefactory.parsley.core.context.Context;
+			import org.spicefactory.parsley.core.messaging.ErrorPolicy;
+			
+			import spark.components.Button;									
+			
+			private var logger:ILogger;			
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var nu:NodeUtil;
+
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			[Inject]
+			public var groupUtil:GroupUtil;
+			
+ 			[MessageDispatcher]
+			public var dispatcher:Function; 
+			
+			[Inject]
+			public var context:Context;
+			
+			private var bm:IBrowserManager = null;
+			private var selectedBtn:Button = null;
+			private var loaded:Boolean = false;
+			
+			[Init]
+			public function init():void{
+				Log.addTarget(traceTarget);				
+				logger = Log.getLogger("index.mxml");
+				logger.info("init app");		
+				
+				// get browser focus
+				ExternalInterface.call("setBrowserFocus");				
+				
+				sm.indexPage = this;
+				
+				// Browser Manager
+				bm = BrowserManager.getInstance();
+				bm.addEventListener(BrowserChangeEvent.BROWSER_URL_CHANGE, onBrowserURLChange);
+				bm.init("", "C-IKNOW");
+				sm.bm = bm;
+				
+				// get baseURL
+				var url:String = bm.url;
+				var baseURL:String = URLUtil.getProtocol(url) + "://" + URLUtil.getServerNameWithPort(url);
+				var path:String = url.substr(baseURL.length + 1);
+				var context:String = path.substring(0, path.indexOf("/"));;
+				baseURL += ("/" + context);
+				sm.baseURL = baseURL;
+				
+				// parse url parameters
+				var params:Object = gu.getParams();
+				if (params == null) return;		
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.INIT);
+				e.data = params;
+				dispatcher(e);
+			}
+			
+			private function onBrowserURLChange(e:BrowserChangeEvent):void{
+				logger.info("Browser URL: " + bm.fragment);
+				var fo:Object = URLUtil.stringToObject(bm.fragment, "&");
+				var module:String = String(fo.m);
+				switch (module){
+					case Constants.M_SURVEY: selectedBtn = main.surveyBtn; break;
+					case Constants.M_REPORT: selectedBtn = main.reportBtn; break;
+					case Constants.M_VISA: selectedBtn = main.visualAnalyticsBtn; break;
+					case Constants.M_RECOMMENDATION: selectedBtn = main.recommendationBtn; break;
+					case Constants.M_ADMINISTRATION: selectedBtn = main.administrationBtn; break;
+					case Constants.M_DOCUMENTATION: selectedBtn = main.documentationBtn; break;
+					default: {}
+				}
+				
+				// user hit browser "Back" button
+				if (loaded) {
+					logger.info("BACKKKKKKKKKK");
+				}
+			}
+			
+			[MessageHandler(selector="inited")]
+			public function createUI(event:GeneralEvent):void{	
+				var survey:SurveyDTO = sm.currentSurvey;
+				var node:NodeDTO = sm.loginNode;
+				var isAdmin:Boolean = nu.isAdmin(node);				
+				
+				logger.info("determine available/visible modules");
+				// survey				
+				var showSurvey:Boolean = gu.verify(survey.attributes, Constants.SURVEY_SHOW_SURVEY);
+				if (isAdmin || showSurvey){
+					gu.show(main.surveyBtn);						
+				}													
+				
+				// report
+				if (isAdmin || gu.verify(survey.attributes, Constants.SURVEY_SHOW_REPORT)){
+					gu.show(main.reportBtn);
+				}
+				
+				// visualanalytics									
+				if (isAdmin || gu.verify(survey.attributes, Constants.SURVEY_SHOW_VIS)){
+					gu.show(main.visualAnalyticsBtn);		
+				}
+				
+				// reocmmender
+				if (isAdmin || gu.verify(survey.attributes, Constants.SURVEY_SHOW_REC)){
+					gu.show(main.recommendationBtn);	
+				}
+				
+				// if there is no requested module, then determine default module
+				if (selectedBtn == null) {
+					logger.info("admin starts from administration ...");	
+					selectedBtn = main.administrationBtn;				
+				}	
+				
+				if (selectedBtn.visible) selectedBtn.dispatchEvent(new MouseEvent(MouseEvent.CLICK));
+				else {
+					Alert.show("The page: " + selectedBtn.label + " is not visible to you. Contact administrator.");
+				}
+				
+				
+				// handler first timer				
+				var firstTimer:String = gu.getAttributeValue(node.attributes, Constants.NODE_FIRST_TIMER);
+				var isFirstTimer:Boolean = (firstTimer == null || firstTimer == "Y");
+				var forceChange:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_FORCE_NEW_USER_CHANGE_PASSWD);
+				if (forceChange == "Y" && isFirstTimer){
+				//if(true){
+					logger.info("forced to change password");
+					this.callLater(function():void{
+						var passwordChangePopup:PasswordChangePopup = new PasswordChangePopup();
+						context.viewManager.addViewRoot(passwordChangePopup);
+						gu.showPopup(passwordChangePopup, moduleFactory);
+					});
+				}
+				
+				
+				// post notice
+				var postNotice:Boolean = gu.verify(survey.attributes, Constants.SURVEY_POST_NOTICE);
+				if (postNotice){
+					// is current login node in the notice audience group
+					var groupName:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_GROUP);
+					var group:GroupDTO = groupUtil.getGroupByName(groupName);
+					var isAudience:Boolean = false;
+					for each (var groupId:Number in sm.loginNode.groups){
+						if (groupId == group.groupId) {
+							isAudience = true;
+							break;
+						}
+					}
+					
+					if (isAudience){
+						// how frequent the notice is displayed
+						var freq:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_FREQUENCY);
+						if (freq != null){
+							if ((freq == Constants.SURVEY_NOTICE_FREQUENCY_FIRST_TIME && isFirstTimer)
+								|| freq == Constants.SURVEY_NOTICE_FREQUENCY_EVERY_TIME){
+								var noticePopup:NoticePopup = new NoticePopup();
+								noticePopup.survey = sm.currentSurvey;
+								noticePopup.generalUtil = gu;
+								gu.showPopup(noticePopup);
+							} 
+						}
+					}
+				}
+				
+				// graduate out of first timer status
+				if (isFirstTimer){
+					sm.loginNode.attributes[Constants.NODE_FIRST_TIMER] = "N";
+					var e:NodeEvent = new NodeEvent(NodeEvent.UPDATE_NODE);
+					e.data = sm.loginNode;
+					dispatcher(e);
+				}
+				
+				loaded = true;
+				
+				// set default locale
+				var locale:Object = gu.getDefaultLocale(sm.currentSurvey.attributes);
+				var localeString:String = locale.locale;
+				dispatchEvent(new LocaleEvent(LocaleEvent.LOAD_LOCALE, localeString));
+				dispatchEvent(PropertyChangeEvent.createUpdateEvent(this,"selectedLocale",null, localeString));	
+				
+				logger.debug("UI constructed");
+			}	
+
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<parsley:ContextBuilder>
+			<cairngorm:CairngormIntegrationSupport/>
+			<parsley:FlexConfig type="{AppContext}"/>
+			<parsley:MessageSettings unhandledErrors="{ErrorPolicy.RETHROW}"/>
+		</parsley:ContextBuilder>
+		
+		<parsley:Configure/>
+				
+		<s:TraceTarget id="traceTarget" 
+					   level="{ LogEventLevel.DEBUG }" 
+					   includeLevel="true" 
+					   includeCategory="true" 
+					   includeDate="true" 
+					   includeTime="true">
+			<s:filters>
+				<fx:Array>
+					<fx:String>index.mxml</fx:String>
+					<fx:String>LanguageBar.mxml</fx:String>
+					<fx:String>edu.northwestern.ciknow.app.presentation.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.app.controller.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.common.util.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.common.controller.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.common.app.*</fx:String>
+					<!--<fx:String>org.spicefactory.parsley.*</fx:String>-->
+				</fx:Array>
+			</s:filters>
+		</s:TraceTarget>
+		
+		<map:LocalizationMap/>
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+ 
+	<presentation:MainPage id="main" width="100%" height="100%"/>
+		
+</s:Application>

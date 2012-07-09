@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" title="Edit Notice"
+			   xmlns:parsley="http://www.spicefactory.org/parsley" 
+			   creationComplete="init()" close="close()">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:NumberValidator id="widthV" source="{widthTi}" property="text" required="true" minValue="400" maxValue="1000" domain="int"/>
+		<s:NumberValidator id="heightV" source="{heightTi}" property="text" required="true" minValue="300" maxValue="800" domain="int"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[			
+			import edu.northwestern.ciknow.common.domain.*;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.popup.NoticePopup;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.GroupUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			private static const logger:ILogger = LogUtil.getLog(NoticeEditPopup);
+
+			[Inject][Bindable]
+			public var model:SharedModel;
+			private var survey:SurveyDTO;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var groupUtil:GroupUtil;
+			
+			[Bindable]
+			private var groups:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]
+			private var frequencies:ArrayCollection = 
+				new ArrayCollection([
+					{name:Constants.SURVEY_NOTICE_FREQUENCY_FIRST_TIME, label:"first time login"},
+					{name:Constants.SURVEY_NOTICE_FREQUENCY_EVERY_TIME, label:"every time login"}]);
+			
+			[Bindable]public var saveMessage:String = "You still need to click 'Save' button to save your changes.";
+			public var selectAudienceMessage:String = "Please select an audience group.";
+			public var selectFrequencyMessage:String = "Please select a frequency.";
+			public var invalidWidthMessage:String = "Invalid width.";
+			public var invalidHeightMessage:String = "Invalid height.";
+			
+			public function init():void{
+				logger.info("init");
+				survey = model.currentSurvey;
+				if (survey == null){
+					Alert.show("There is no survey!");
+					close();
+				}
+				
+				var group:GroupDTO = null;
+				for each (group in model.groups){
+					if (group.isPrivate()) continue;
+					groups.addItem(group);
+				}
+				
+				var htmlText:String = gu.getAttributeValue(survey.longAttributes, Constants.SURVEY_NOTICE_CONTENT);
+				if (htmlText != null) contentEditor.htmlText = htmlText;
+				
+				var groupName:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_GROUP);
+				group = groupUtil.getGroupByName(groupName);
+				audienceBox.selectedItem = group;
+				logger.debug(group != null?group.name:"null");
+				
+				var freq:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_FREQUENCY);
+				if (freq == null) frequencyBox.selectedItem = null;
+				else if (freq == Constants.SURVEY_NOTICE_FREQUENCY_FIRST_TIME) frequencyBox.selectedIndex = 0;
+				else if (freq == Constants.SURVEY_NOTICE_FREQUENCY_EVERY_TIME) frequencyBox.selectedIndex = 1;
+				else frequencyBox.selectedItem = null;
+				
+				var width:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_WIDTH);
+				if (width == null) width = "400";
+				widthTi.text = width;
+				
+				var height:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_HEIGHT);
+				if (height == null) height = "300";
+				heightTi.text = height;
+				
+				var backgroundColor:String = gu.getAttributeValue(survey.attributes, Constants.SURVEY_NOTICE_BACKGROUND);
+				if (backgroundColor != null) colorPicker.selectedColor = uint(backgroundColor);
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function update():void{
+				if (collectNoticeSettings()) close();
+			}
+			
+			private function preview():void{
+				if (collectNoticeSettings()){
+					var noticePopup:NoticePopup = new NoticePopup();
+					noticePopup.survey = this.survey;
+					noticePopup.generalUtil = this.gu;
+					gu.showPopup(noticePopup, moduleFactory);
+				}
+			}
+			
+			private function collectNoticeSettings():Boolean{
+				survey.longAttributes[Constants.SURVEY_NOTICE_CONTENT] = contentEditor.htmlText;
+				
+				var selectedGroup:GroupDTO = GroupDTO(audienceBox.selectedItem);
+				if (selectedGroup == null) {
+					Alert.show(selectAudienceMessage);
+					return false;
+				}
+				survey.attributes[Constants.SURVEY_NOTICE_GROUP] = selectedGroup.name;
+				
+				var f:Object = frequencyBox.selectedItem;
+				if (f == null){
+					Alert.show(selectFrequencyMessage);
+					return false;
+				}
+				survey.attributes[Constants.SURVEY_NOTICE_FREQUENCY] = String(f.name);
+				
+				var e:ValidationResultEvent = widthV.validate();
+				if (e.type == ValidationResultEvent.INVALID){
+					Alert.show(invalidWidthMessage);
+					return false;
+				}
+				survey.attributes[Constants.SURVEY_NOTICE_WIDTH] = StringUtil.trim(widthTi.text);
+				
+				e = heightV.validate();
+				if (e.type == ValidationResultEvent.INVALID){
+					Alert.show(invalidHeightMessage);
+					return false;
+				}
+				survey.attributes[Constants.SURVEY_NOTICE_HEIGHT] = StringUtil.trim(heightTi.text);
+				
+				var selectedColor:uint = colorPicker.selectedColor;
+				survey.attributes[Constants.SURVEY_NOTICE_BACKGROUND] = String(selectedColor);
+				
+				return true;
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form width="100%" height="100%">
+		<s:layout>
+			<s:FormLayout gap="-7"/>
+		</s:layout>
+		<s:FormItem id="contentsItem" label="Contents">
+			<mx:RichTextEditor id="contentEditor" 
+							   headerHeight="0" borderVisible="false" 
+							   width="100%" height="100%"/>
+		</s:FormItem>
+		<s:FormItem id="audienceItem" label="Audience">
+			<s:DropDownList id="audienceBox" dataProvider="{groups}" labelField="name"/>
+		</s:FormItem>
+		<s:FormItem id="frequencyItem" label="Frequency">
+			<s:DropDownList id="frequencyBox" dataProvider="{frequencies}" labelField="label"/>
+		</s:FormItem>
+		<s:FormItem id="widthItem" label="Width">
+			<s:TextInput id="widthTi"/>			
+		</s:FormItem>
+		<s:FormItem id="heightItem" label="Height">
+			<s:TextInput id="heightTi"/>			
+		</s:FormItem>
+		<s:FormItem id="backgroundItem" label="Background">
+			<mx:ColorPicker id="colorPicker"/>	
+		</s:FormItem>
+	</s:Form>
+	<s:controlBarContent>
+		<s:HGroup verticalAlign="baseline">
+			<s:Button id="updateBtn" label="Update" click="update()"/>
+			<s:Button id="previewBtn" label="Preview" click="preview()"/>
+			<s:Button id="closeBtn" label="Close" click="close()"/>
+			<s:Label text="{saveMessage}"/>
+		</s:HGroup>		
+	</s:controlBarContent>
+</s:TitleWindow>

@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   creationComplete="init()" close="close()"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:HorizontalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[			
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.util.EdgeUtil;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.managers.PopUpManager;
+			
+			private static var logger:ILogger = LogUtil.getLog(MetricsSimilarityEdgesPopup);
+			
+			[Bindable] private var availableEdges:ArrayCollection = new ArrayCollection();
+			[Bindable] private var selectedEdges:ArrayCollection = new ArrayCollection();
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var eu:EdgeUtil;
+			
+			public var entry:XML = null;
+			public var parentButton:mx.controls.Button = null;
+			
+			public var removeEdgeMessage:String = "Please select from selected edge types...";
+			public var addEdgeMessage:String = "Please select from available edge types...";
+			
+			public function init():void{							
+				getEdgeTypesByFromToNodeTypes(entry.@f, entry.@t);
+				
+				for each (var edge:XML in entry.edge){
+					var ed:Object = eu.getEdgeDescription(sm.edgeTypeDescriptions, edge.@type);
+					var e:Object = new Object();
+					e.type = ed.type;
+					e.label = ed.label;
+					e.direction = edge.@direction;
+					selectedEdges.addItem(e);
+				}
+				selectedEdges.sort = gu.getSort("label");
+				selectedEdges.sort.fields.push(new SortField("direction", true, true));
+				selectedEdges.refresh();
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function getEdgeTypesByFromToNodeTypes(fromNodeType:String, toNodeType:String):void{
+				var e:EdgeEvent = new EdgeEvent(EdgeEvent.GET_EDGE_TYPES_BY_FROM_TO_NODE_TYPES);
+				e.data.fromNodeType = fromNodeType;
+				e.data.toNodeType = toNodeType;
+				dispatcher(e);			
+			}
+			
+			[MessageHandler(selector="gotEdgeTypesByFromToNodes")]
+			public function gotEdgeTypes(event:EdgeEvent):void{
+				availableEdges = ArrayCollection(event.data);
+				availableEdges.sort = gu.getSort("label");
+				availableEdges.sort.fields.push(new SortField("direction", true, true));
+				availableEdges.refresh();
+			}
+			
+			private function getLabel(item:Object, column:GridColumn):String{
+				var type:String = item.type;
+				var label:String = item.label;
+				if (type.indexOf("d.") == 0) return "derived::" + label;
+				else return label;
+			}
+			
+			
+			/********************* add/remove edge types **************************/
+			private function addEdgeTypes():void{
+				var items:Vector.<Object> = availableEdgesBox.selectedItems;
+				if (items == null || items.length == 0) {
+					Alert.show("please select from available edge types...");
+					return;
+				}
+				
+				for each (var edge:Object in items){
+					if (contain(selectedEdges, edge)) continue;
+					
+					selectedEdges.addItem(edge);
+					var edgeXml:XML = <edge type={edge.type} direction={edge.direction}/>;
+					entry.appendChild(edgeXml);
+				}
+				
+				selectedEdges.refresh();
+			}			
+			
+			private function contain(edges:ArrayCollection, edge:Object):Boolean{
+				for each (var e:Object in edges){
+					if (e.type == edge.type && e.direction == edge.direction) {
+						return true;
+					}
+				}	
+				return false;
+			}
+			
+			private function removeEdgeTypes():void{
+				var items:Vector.<Object> = selectedEdgesBox.selectedItems;
+				if (items == null || items.length == 0) {
+					Alert.show("please select from selected edge types...");
+					return;
+				}
+				
+				for each (var edge:Object in items){
+					selectedEdges.removeItemAt(selectedEdges.getItemIndex(edge));
+					delete entry.edge.(@type == edge.type && @direction == edge.direction)[0];
+				}
+				
+				selectedEdges.refresh();
+			}
+			
+			
+			/********************* controlbar operations **************************/
+			private function close():void{
+				PopUpManager.removePopUp(this);
+				parentButton.label = String(selectedEdges.length);
+			}		
+		]]>
+	</fx:Script>
+	
+	<s:DataGrid id="availableEdgesBox" dataProvider="{availableEdges}" 
+				 selectionMode="multipleRows"
+				 requestedRowCount="8"
+				 doubleClickEnabled="true" 
+				 doubleClick="addEdgeTypes()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="allEdgeTypesColumn"
+							  headerText="Available Edge Types" labelFunction="getLabel" 
+							  showDataTips="true" dataTipField="type" width="300"/>
+				<s:GridColumn id="directionColumn1" dataField="direction" headerText="Direction" width="100"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>				
+	
+	<s:VGroup height="100%" verticalAlign="middle">
+		<s:Button label="&gt;" click="addEdgeTypes()"/>
+		<s:Button label="&lt;" click="removeEdgeTypes()"/>
+	</s:VGroup>
+	
+	<s:DataGrid id="selectedEdgesBox" dataProvider="{selectedEdges}" 
+				 selectionMode="multipleRows"
+				 requestedRowCount="8"
+				 doubleClickEnabled="true" 
+				 doubleClick="removeEdgeTypes()">
+		<s:columns>
+			<s:ArrayList>
+				<s:GridColumn id="selectedEdgeTypesColumn"
+							  headerText="Selected Edge Types" labelFunction="getLabel" 
+							  showDataTips="true" dataTipField="type" width="300"/>
+				<s:GridColumn id="directionColumn2" dataField="direction" headerText="Direction" width="100"/>
+			</s:ArrayList>
+		</s:columns>
+	</s:DataGrid>	
+	
+	<s:controlBarContent>
+		<s:Button id="closeBtn" label="Close" click="close()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

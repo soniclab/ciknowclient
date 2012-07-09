@@ -1,0 +1,454 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  creationComplete="init();" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.GroupDTO;
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.popup.TextDisplayPopup;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.GroupUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.QuestionUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.logging.ILogger;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static const logger:ILogger = LogUtil.getLog(ImportExport);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			[Inject][Bindable]
+			public var model:SharedModel;
+
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var qu:QuestionUtil;
+			
+			[Inject]
+			public var groupUtil:GroupUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			[Bindable] private var isContactChooser:Boolean = false;
+			[Bindable] private var keepEmptyPrivateGroup:Boolean = false;
+			[Bindable] private var removeNonRespondent:Boolean = false;
+			[Bindable] private var isPerceived:Boolean = false;
+			[Bindable] private var subActions:ArrayCollection = new ArrayCollection(
+				[{name: "normal", label: "Mixed", tip:""}, 
+				{name: "createOnly", label: "Create New Nodes Only", tip:"You need to garantee all nodes NOT exist in the system."},
+				{name: "updateOnly", label: "Update Existing Nodes Only", tip:"You need to garantee all nodes exist in the system."},
+				{name: "validate", label: "Validate Input File", tip:""}
+			]);
+			[Bindable] private var questions:ArrayCollection = new ArrayCollection();
+			[Bindable] private var attributeQuestions:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]public var noticeMessage:String = 
+				"The best way to backup/restore CI-KNOW is to export/import codebook and graphml. " +
+				"\nPlease make sure to confirm with file (e.g. *.jpg) and data format when import data."; 
+			[Bindable]public var selectQuestionMessage:String = "Please select question.";
+			[Bindable]public var selectGroupMessage:String = "Please select node group.";
+			public var contactsInstructionTitle:String = "Notes";
+			public var contactsInstructionMessage:String = 
+				"1, Username is required and must be unique for each entity.\n" 
+				+ "2, Enabled = 1 means this node can login, otherwise not.\n"
+				+ "3, NodeType can be user (reserved), keyword, document, etc. \n"
+				+ "4, if NodeType = user, firstname and lastname is required. They will be concatenated as nodeLabel; Otherwise, nodeLabel is required and cannot exceed 1024 characters.\n";
+
+			
+			//[Init]
+			public function init():void{
+				logger.debug("initializing...");
+				
+				if (model.mainPageHeight > 0) {
+					scroller.height = model.mainPageHeight - 34;
+					scroller.width = model.mainPageWidth;
+				}
+				
+				for each (var question:QuestionDTO in model.questions){
+					if (question.type == Constants.QUESTION_TYPE_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_RATING ||
+						question.type == Constants.QUESTION_TYPE_CONTINUOUS ||	   
+						question.type == Constants.QUESTION_TYPE_DURATION_CHOOSER ||     			
+						question.type == Constants.QUESTION_TYPE_MULTIPLE_RATING ||
+						question.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_TEXT ||
+						//question.type == Constants.QUESTION_TYPE_TEXT_QUICK ||
+						question.type == Constants.QUESTION_TYPE_TEXT_LONG ||
+						question.type == Constants.QUESTION_TYPE_RELATIONAL_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_RELATIONAL_RATING ||
+						question.type == Constants.QUESTION_TYPE_PERCEIVED_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_PERCEIVED_RATING ||
+						question.type == Constants.QUESTION_TYPE_PERCEIVED_RELATIONAL_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_PERCEIVED_RELATIONAL_RATING ||
+						question.type == Constants.QUESTION_TYPE_RELATIONAL_CONTINUOUS ||
+						question.type == Constants.QUESTION_TYPE_RELATIONAL_CHOICE_MULTIPLE ||
+						question.type == Constants.QUESTION_TYPE_RELATIONAL_RATING_MULTIPLE ||
+						question.type == Constants.QUESTION_TYPE_CONTACT_PROVIDER ||
+						question.type == Constants.QUESTION_TYPE_CONTACT_CHOOSER)
+					{
+						questions.addItem(question);
+						//logger.debug("im/exportable question: " + question.label);
+					}
+					
+					if (question.type == Constants.QUESTION_TYPE_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_RATING ||
+						question.type == Constants.QUESTION_TYPE_CONTINUOUS ||	   
+						question.type == Constants.QUESTION_TYPE_DURATION_CHOOSER ||     			
+						question.type == Constants.QUESTION_TYPE_MULTIPLE_RATING ||
+						question.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE ||
+						question.type == Constants.QUESTION_TYPE_TEXT ||
+						question.type == Constants.QUESTION_TYPE_TEXT_LONG ||
+						question.type == Constants.QUESTION_TYPE_CONTACT_INFO)
+					{
+						attributeQuestions.addItem(question);
+						//logger.debug("im/exportable question: " + question.label);
+					}
+					
+					// set default node data export group to "USER"
+					var defaultNodeDataGroup:GroupDTO = groupUtil.getGroupByName(Constants.GROUP_USER);					
+					if (defaultNodeDataGroup != null) groupBox.selectedItem = defaultNodeDataGroup;
+				}
+			}	
+			
+			private function downloadSurvey():void{
+				var filenameFormat:String = "name";
+				if (exportAllByNameBtn.selected) filenameFormat = "name";
+				else if (exportAllByIdBtn.selected) filenameFormat = "id";
+				else if (exportAllBySequenceNumberBtn.selected) filenameFormat = "sequence";	
+				iu.downloadSurvey(filenameFormat, "matrix", false, false, false);        	
+			}
+			
+			private function downloadQuestion():void{
+				var question:QuestionDTO = questionGrid.selectedItem as QuestionDTO;
+				if (question == null) {
+					Alert.show(selectQuestionMessage);
+					return;
+				}
+				var filenameFormat:String = "name";
+				if (exportQuestionByNameBtn.selected) filenameFormat = "name";
+				else if (exportQuestionByIdBtn.selected) filenameFormat = "id";
+				else if (exportQuestionBySequenceNumberBtn.selected) filenameFormat = "sequence";	
+				
+				var outputFormat:String;
+				if (exportMatrixBtn.selected) outputFormat = "matrix";
+				else outputFormat = "list";
+				
+				iu.downloadQuestion(question.questionId, filenameFormat, outputFormat, 
+					keepEmptyPrivateGroupBox.selected, 
+					removeNonRespondentBox.selected, 
+					ignoreActivitiesBox.selected,
+					exportByColumnBox.selected);
+			}
+			
+			private function downloadDL():void{
+				var labelEmbedded:String = labelEmbeddedBox.selected?"1":"0";
+				var showIsolate:String = showIsolateBox.selected?"1":"0";
+				
+				iu.downloadDL(labelEmbedded, showIsolate);	
+			} 
+			
+			private function instruct(event:MouseEvent):void{
+				var p:TextDisplayPopup = new TextDisplayPopup();
+				p.title = contactsInstructionTitle;
+				p.msg = contactsInstructionMessage;
+				gu.showPopup(p);
+			}	
+			
+			private function showGraphmlFormat():void{
+				var url:String = model.baseURL + "/graphml.ciknow.doc";
+				navigateToURL(new URLRequest(url), "_blank");
+			}    
+			
+			private function selectQuestion():void{
+				var q:QuestionDTO = questionGrid.selectedItem as QuestionDTO;
+				
+				if (q != null && 
+					(q.type == Constants.QUESTION_TYPE_CONTACT_CHOOSER 
+						|| q.type == Constants.QUESTION_TYPE_CONTACT_PROVIDER)) keepEmptyPrivateGroup = true;
+				else keepEmptyPrivateGroup = false;
+				
+				if (q != null && 
+					q.type == Constants.QUESTION_TYPE_CONTACT_CHOOSER) isContactChooser = true;
+				else isContactChooser = false;
+				
+				if (q != null && (
+					qu.isRelational(q)
+					|| q.type == Constants.QUESTION_TYPE_CHOICE
+					|| q.type == Constants.QUESTION_TYPE_RATING
+					|| q.type == Constants.QUESTION_TYPE_DURATION_CHOOSER
+					|| q.type == Constants.QUESTION_TYPE_CONTINUOUS
+					|| q.type == Constants.QUESTION_TYPE_MULTIPLE_CHOICE
+					|| q.type == Constants.QUESTION_TYPE_MULTIPLE_RATING
+					|| q.type == Constants.QUESTION_TYPE_TEXT
+					|| q.type == Constants.QUESTION_TYPE_TEXT_LONG
+				)){
+					removeNonRespondent = true;
+				} else removeNonRespondent = false;
+				
+				if (q != null && (
+					q.type == Constants.QUESTION_TYPE_PERCEIVED_CHOICE
+					|| q.type == Constants.QUESTION_TYPE_PERCEIVED_RATING
+					|| q.type == Constants.QUESTION_TYPE_PERCEIVED_RELATIONAL_CHOICE
+					|| q.type == Constants.QUESTION_TYPE_PERCEIVED_RELATIONAL_RATING)){
+					isPerceived = true;
+				} else isPerceived = false;
+			}
+			
+			private function onContactSubActionChanged():void{
+				if (contactsActionBox.selectedIndex != 0){
+					contactsOverwriteBox.enabled = false;
+				} else {
+					contactsOverwriteBox.enabled = true;
+				}
+			}
+			
+			/*
+			private function moveUp():void{
+				
+			}
+			
+			private function moveDown():void{
+				
+			}
+			*/
+			
+			private function downloadNodeData():void{
+				var group:GroupDTO = GroupDTO(groupBox.selectedItem);
+				if (group == null) {
+					Alert.show(selectGroupMessage);
+					return;
+				}
+				
+				var selectedQuestions:Vector.<Object> = attributeQuestionDg.selectedItems;
+				if (selectedQuestions == null || selectedQuestions.length == 0) {
+					Alert.show(selectQuestionMessage);
+					return;
+				}
+				var questionIds:ArrayCollection = new ArrayCollection();
+				for each (var question:QuestionDTO in selectedQuestions){
+					questionIds.addItem(question.questionId.toString());					
+				}
+				
+				iu.downloadNodeData(group.groupId.toString(), questionIds, nodeDataPrettyBox.selected);
+			}
+			
+			[MessageHandler(selector="RESIZE")]		
+			public function onResize(e:GeneralEvent):void{	
+				var moduleHeight:Number = Number(e.data.height);
+				var moduleWidth:Number = Number(e.data.width);
+				scroller.height = moduleHeight - 34;
+				scroller.width = moduleWidth;
+				logger.info("Set Scroller Size: width=" + scroller.width + ", height=" + scroller.height);
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Scroller id="scroller">
+		<s:VGroup width="100%" height="100%">
+			<s:Form>
+				<s:FormItem id="noticeItem" label="Tips">
+					<s:Label text="{noticeMessage}" color="0x006400" fontStyle="italic" fontWeight="bold"/>
+				</s:FormItem>
+				
+				<s:FormItem id="frontLogoItem" label="Frontpage Logo">
+					<s:Button id="frontLogoBtn" label="Upload (*.jpg)" click="iu.uploadImage('logo_front')"/>
+				</s:FormItem>
+				<s:FormItem id="pauseLogoItem" label="Survey Pause Logo" visible="false" includeInLayout="false">
+					<s:Button id="pauseLogoBtn" label="Upload (*.jpg)" click="iu.uploadImage('logo_pause')"/>
+				</s:FormItem>	
+				<s:FormItem id="finishLogoItem" label="Survey Finish Logo" visible="false" includeInLayout="false">
+					<s:Button id="finishLogoBtn" label="Upload (*.jpg)" click="iu.uploadImage('logo_finish')"/>
+				</s:FormItem>	
+				<s:FormItem id="photosItem" label="Photos">
+					<s:Button id="photosBtn" label="Upload (*.zip)" click="iu.uploadImage('photos')"/>
+				</s:FormItem>			
+				
+				<s:FormItem id="codeBookItem" label="Code Book">
+					<s:Button id="codeBookBtn" label="View" click="iu.viewCodebook()"/>		
+				</s:FormItem>
+				<s:FormItem id="metaDataItem" label="Meta Data">
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="metaDataImportBtn" label="Import(*.xml)" click="iu.uploadCodebook(metaDataOverwriteBox.selected)"/>
+						<s:CheckBox id="metaDataOverwriteBox" label="Overwrite existing questions during import" visible="false"/>	
+					</s:HGroup>		
+					<s:Button id="metaDataExportBtn" label="Export" click="iu.downloadCodebook()"/>					
+				</s:FormItem>		
+				
+				<s:FormItem id="graphmlItem" label="GraphML">
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="graphmlImportBtn" label="Import(*.xml)" click="iu.uploadGraphml(graphmlOverwriteBox.selected)"/>
+						<s:CheckBox id="graphmlOverwriteBox" label="Overwrite existing nodes during import"/>
+						<s:Button id="graphmlFormatBtn" label="Format" click="showGraphmlFormat()" toolTip="Show GraphML format"/>
+					</s:HGroup>
+					
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="graphmlExportBtn" label="Export" click="iu.downloadGraphml(graphmlRoundtripEnabledBox.selected)" toolTip="Export all nodes and edges. For specific network, please download via 'VisualAnalytics' Tab."/>
+						<s:CheckBox id="graphmlRoundtripEnabledBox" label="Roundtrip Enabled" selected="true"/>
+					</s:HGroup>
+				</s:FormItem>
+				
+				<s:FormItem id="dlItem" label="DL (UCINET)">
+					<s:Button id="dlImportBtn" label="Import(*.txt)" click="iu.uploadDL()"/>
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="dlExportBtn" label="Export" click="downloadDL()" toolTip="Export all edges and related nodes. For specific network, please download via 'VisualAnalytics' Tab."/>
+						<s:CheckBox id="labelEmbeddedBox" label="Label Embedded" selected="true"/>
+						<s:CheckBox id="showIsolateBox" label="Show Isolate" selected="true"/>
+					</s:HGroup>
+				</s:FormItem>
+				
+				<s:Spacer height="20"/>
+				
+				<s:FormItem id="contactsItem" label="Contacts">	
+					<s:HGroup verticalAlign="baseline">							
+						<s:Button id="contactsInstructionBtn" label="Instruction" click="instruct(event)"/>
+						<s:Button id="contactsTemplateBtn" label="Template" click="iu.downloadContacts('1')"/>
+					</s:HGroup>
+					
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="contactsImportBtn" label="Import (*.txt)" click="iu.uploadContacts(contactsOverwriteBox.selected, String(contactsActionBox.selectedItem.name))"/>		
+						<s:CheckBox id="contactsOverwriteBox" label="Overwrite existing nodes during import"/>	
+						<s:DropDownList id="contactsActionBox" dataProvider="{subActions}" selectedIndex="0" change="onContactSubActionChanged()"/>	
+					</s:HGroup>
+					
+					<s:Button id="contactsExportBtn" label="Export" click="iu.downloadContacts('0')"/>
+				</s:FormItem>
+				
+				<s:FormItem id="attributesItem" label="Attributes" toolTip="user defined attributes in CSV format (e.g. Excel SpeadSheet)">	
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="attributesImportBtn" label="Import (*.txt)" click="iu.uploadNodeAttributes()"/>
+						<s:Button id="attributesSampleBtn" label="Sample" click="iu.viewNodeAttributesSample()"/>	
+					</s:HGroup>
+				</s:FormItem>		
+				
+				<s:FormItem id="nodeGroupsItem" label="Node Groups" toolTip="node and its corresponding groups">
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="nodeGroupsImportBtn" label="Import (*.txt)" click="iu.uploadUserGroups()"/>
+						<s:Button id="nodeGroupsExportBtn" label="Export" click="iu.downloadUserGroups()"/>	
+					</s:HGroup>
+				</s:FormItem>
+				
+				<s:FormItem id="nodeRolesItem" label="Node Roles" toolTip="node and its correponding roles">
+					<s:HGroup verticalAlign="baseline">
+						<s:Button id="nodeRolesImportBtn" label="Import (*.txt)" click="iu.uploadUserRoles()"/>		
+						<s:Button id="nodeRolesExportBtn" label="Export" click="iu.downloadUserRoles()"/>
+					</s:HGroup>
+				</s:FormItem>
+				
+				<s:FormItem id="allQuestionsItem" label="All Questions">
+					<s:Button id="allQuestionsImportBtn" label="Import (*.zip)" click="iu.uploadSurvey()"/>
+					<s:Spacer height="10"/>
+					<s:VGroup>
+						<s:HGroup verticalAlign="baseline">
+							<s:Label id="allQuestionsExportNamedBy" text="Files Named By:"/>
+							<s:RadioButton id="exportAllByNameBtn" label="Name" groupName="a" toolTip="downloaded files are named by question shortName" selected="true"/>
+							<s:RadioButton id="exportAllByIdBtn" label="ID" groupName="a" toolTip="downloaded files are named by question id"/>
+							<s:RadioButton id="exportAllBySequenceNumberBtn" label="SequenceNumber" groupName="a" toolTip="downloaded files are named by question sequence number. SEQUENCE NUMBER MUST BE UNIQUE!"/>
+						</s:HGroup>
+						<s:Button id="allQuestionsExportBtn" label="Export" click="downloadSurvey()"/>						
+					</s:VGroup>						
+				</s:FormItem>
+				
+				<s:FormItem id="questionItem" label="Individual Question">		
+					<s:DataGrid id="questionGrid" dataProvider="{questions}" 
+								height="100%" width="100%" requestedRowCount="8"
+								selectionChange="selectQuestion()">
+						<s:columns>
+							<s:ArrayList>
+								<s:GridColumn dataField="label" headerText="{selectQuestionMessage}"/>
+							</s:ArrayList>
+						</s:columns>
+					</s:DataGrid>
+					
+					<s:Button id="questionImportBtn" label="Import (*.txt)" click="iu.uploadQuestion()"/>
+					<s:Spacer height="10"/>
+					<s:VGroup>
+						<s:HGroup verticalAlign="baseline">
+							<s:Label id="questionExportNamedBy" text="Files Named By:"/>
+							<s:RadioButton id="exportQuestionByNameBtn" label="Name" groupName="b" toolTip="downloaded files are named by question shortName" selected="true"/>
+							<s:RadioButton id="exportQuestionByIdBtn" label="ID" groupName="b" toolTip="downloaded files are named by question id"/>
+							<s:RadioButton id="exportQuestionBySequenceNumberBtn" label="SequenceNumber" groupName="b" toolTip="downloaded files are named by question sequence number. SEQUENCE NUMBER MUST BE UNIQUE!"/>
+						</s:HGroup>
+						<s:HGroup verticalAlign="baseline">
+							<s:Label id="questionExportFormat" text="File Format:" visible="{isContactChooser}" includeInLayout="{isContactChooser}"/>
+							<s:RadioButton id="exportMatrixBtn" label="Matrix" groupName="c" 
+										   toolTip="downloaded file in matrix" 
+										   visible="{isContactChooser}" includeInLayout="{isContactChooser}" 
+										   selected="true"/>
+							<s:RadioButton id="exportListBtn" label="List" groupName="c" 
+										   toolTip="downloaded file in adjacency list"
+										   visible="{isContactChooser}" includeInLayout="{isContactChooser}"/>
+						</s:HGroup>
+						<s:CheckBox id="keepEmptyPrivateGroupBox" label="Keep Empty Group?" 
+									visible="{keepEmptyPrivateGroup}" includeInLayout="{keepEmptyPrivateGroup}"/>
+						<s:CheckBox id="removeNonRespondentBox" label="Remove Non Respondent?" 
+									visible="{removeNonRespondent}" includeInLayout="{removeNonRespondent}"/>
+						<s:CheckBox id="ignoreActivitiesBox" label="Ignore Respondent Activities?" 
+									visible="{removeNonRespondent}" includeInLayout="{removeNonRespondent}"/>
+						<s:CheckBox id="exportByColumnBox" label="Export By Column?" 
+									visible="{isPerceived}" includeInLayout="{isPerceived}"/>
+						<s:Button id="questionExportBtn" label="Export" click="downloadQuestion()"/>
+					</s:VGroup>					
+				</s:FormItem>	
+				
+				<s:FormItem id="nodeDataItem" label="Node Data">	
+					<s:HGroup verticalAlign="baseline">
+						<s:Label text="{selectGroupMessage}"/>
+						<s:DropDownList id="groupBox" dataProvider="{model.groups}" width="200" labelField="name"/>
+					</s:HGroup>
+					
+					<s:DataGrid id="attributeQuestionDg" 
+								dataProvider="{attributeQuestions}" 
+								selectionMode="multipleRows" 
+								requestedRowCount="8"
+								width="100%" height="100%">
+						<s:columns>
+							<s:ArrayList>
+								<s:GridColumn dataField="label" headerText="{selectQuestionMessage}"/>
+							</s:ArrayList>
+						</s:columns>
+					</s:DataGrid>
+					<s:HGroup verticalAlign="baseline">
+						<!--
+						<s:Button label="/\" click="moveUp()"/>
+						<s:Button label="\/" click="moveDown()"/>
+						-->
+						
+						<!--
+						<s:Button id="nodeDataImportBtn" label="Import (*.txt)" click="iu.uploadNodeData()"/>	
+						-->
+						
+						<s:CheckBox id="nodeDataPrettyBox" label="Pretty Format"/>
+						<s:Button id="nodeDataExportBtn" label="Export" click="downloadNodeData()"/>
+					</s:HGroup>
+				</s:FormItem>
+			</s:Form>	
+
+		</s:VGroup>
+	</s:Scroller>
+
+</s:VGroup>

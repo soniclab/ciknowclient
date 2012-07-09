@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley" 
+		  xmlns:components="edu.northwestern.ciknow.common.components.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			
+			private static var logger:ILogger = LogUtil.getLog(Groups);
+			
+			[Inject]
+			[Bindable]
+			public var pm:NodePM;
+			
+			[Init]
+			public function init():void{
+				logger.debug("init groups");
+				userGroups.currentGroupIds = pm.selectedNode.groups;
+				userGroups.init();
+			}
+			
+			[MessageHandler(selector="loadedCurrentNode")]
+			public function onNodeLoaded(event:NodeEvent):void{
+				userGroups.currentGroupIds = pm.selectedNode.groups;
+				userGroups.init();
+			}
+			
+		]]>
+	</fx:Script>
+
+	<components:SelectGroups id="userGroups" selectGroupChange="pm.selectedNode.dirty = true"/>
+</s:HGroup>

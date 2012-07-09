@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:parsley="http://www.spicefactory.org/parsley" xmlns:network="edu.northwestern.ciknow.visa.presentation.network.*">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.NetworkMetrics;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.NetworkAnalyticsEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			
+			private static const logger:ILogger = LogUtil.getLog(Analytics);
+			
+			[Bindable] private var isVisible:Boolean;
+			[Bindable] private var networkMetricsList:ArrayCollection;
+			private var filename:String;
+			private var type:String = "default";
+			private var msg:String = null;
+			
+			[Inject]
+			public var sm:SharedModel;								
+			
+			[MessageHandler(selector="gotNetworkMetrics")]
+			public function networkMetricsHandler(event:NetworkAnalyticsEvent):void{
+				isVisible = false;
+				if (event.data.hasOwnProperty("msg")){
+					Alert.show(event.data.msg);
+					return;
+				}							
+					
+				networkMetricsList = ArrayCollection(event.data.networkMetricsList);
+				type = String(event.data.type);
+				filename = String(event.data.filename);
+						
+				networkLabelBox.selectedIndex = 0;
+				showMetrics();						
+			}	
+					
+			
+			
+			private function showMetrics():void{
+				var nm:NetworkMetrics = networkLabelBox.selectedItem as NetworkMetrics;
+				analyticsDisplay.networkMetrics = nm;
+				analyticsDisplay.update();
+				isVisible = true;				
+			}	
+			
+			private function downloadResults():void{
+				if (networkMetricsList.length == 0){
+					Alert.show("Not Available");
+					return;
+				}
+				navigateToURL(new URLRequest(sm.baseURL + "/" + filename));
+			}
+		]]>
+	</fx:Script>
+	<s:HGroup visible="{isVisible}">
+		<s:DropDownList id="networkLabelBox" 
+						dataProvider="{networkMetricsList}" 
+						labelField="networkName" 
+						width="400" styleName="navigation"
+						change="showMetrics()"/>
+		<s:Button id="downloadBtn" label="Download Results" click="downloadResults()"/>
+	</s:HGroup>
+	<s:Label id="note" text="Note: In order to get more meaningful results, the isolates in each network have been removed." 
+			 color="red" fontStyle="italic" fontSize="10" visible="{isVisible}"/>
+	
+	<network:AnalyticsDisplay id="analyticsDisplay" visible="{isVisible}"/>
+</s:VGroup>

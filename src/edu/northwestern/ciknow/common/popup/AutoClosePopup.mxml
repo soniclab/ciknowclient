@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   title="Automatically close in (0) second"
+			   close="close()" 
+			   creationComplete="init()">
+	<fx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			
+			public var duration:int = 5;
+			private var count:int = 0;
+			private var timer:Timer = null;
+			
+			private function init():void{
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function close():void{
+				timer.stop();
+				PopUpManager.removePopUp(this);	
+			}
+			
+			public function startTimer():void{
+				timer = new Timer(1000, duration);
+				timer.addEventListener(TimerEvent.TIMER, onTimer);
+				timer.addEventListener(TimerEvent.TIMER_COMPLETE, onTimerComplete);
+				timer.start();
+			}
+			
+			private function onTimer(e:TimerEvent):void{
+				var t:String = title;
+				var p:RegExp = new RegExp("\\d+", "i");
+				var timeleft:int = duration - count;
+				title = t.replace(p, timeleft);
+				count++;
+			}
+			
+			private function onTimerComplete(e:TimerEvent):void{
+				close();
+			}			
+		]]>
+	</fx:Script>
+
+	<s:RichText id="msg"/>
+
+</s:TitleWindow>

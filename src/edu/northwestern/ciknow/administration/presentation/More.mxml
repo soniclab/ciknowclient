@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  xmlns:more="edu.northwestern.ciknow.administration.presentation.more.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			
+			[Bindable]public var prompt:String = "Please Select An Item";
+			[Bindable]public var visualizationColorSettings:String = "Visualization Color Settings";
+			[Bindable]public var scheduledJobSettings:String = "Scheduled Job Settings";
+			
+		]]>
+	</fx:Script>
+	<s:DropDownList id="list" prompt="{prompt}"
+					change="stacks.selectedIndex = list.selectedIndex" 
+					width="400" styleName="navigation">
+		<s:layout>
+			<s:VerticalLayout gap="0" requestedRowCount="{list.dataProvider.length}" horizontalAlign="contentJustify"/>
+		</s:layout>
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:String>{visualizationColorSettings}</fx:String>
+				<fx:String>{scheduledJobSettings}</fx:String>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	
+	<s:Spacer height="10"/>
+	
+	<mx:ViewStack id="stacks" width="100%" height="100%" 
+				  visible="{list.selectedIndex != -1}" 
+				  includeInLayout="{list.selectedIndex != -1}">
+		<s:NavigatorContent label="Visualization Color Settings">
+			<more:VisColorSettings styleName="headlessPanel"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent label="Scheduled Job Settings">
+			<more:JobSettings styleName="headlessPanel"/>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+</s:VGroup>

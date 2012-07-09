@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.recommendation.controller.*;
+			import edu.northwestern.ciknow.common.events.*;
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Presentation -->
+		
+		
+		<!-- Application -->
+		<parsley:DynamicCommand type="{RecommendationsGetCommand}" selector="{RecommendationEvent.GET_RECOMMENDATIONS}"/>
+				
+		<parsley:DynamicCommand type="{TeamAssemblyGetSuggestionCommand}" selector="{RecommendationEvent.GET_TEAM_ASSEMBLY_SUGGESTION}"/>
+		<parsley:DynamicCommand type="{TeamAssemblyGetConfigCommand}" selector="{RecommendationEvent.GET_TEAM_ASSEMBLY_CONFIG}"/>		
+		<parsley:DynamicCommand type="{TeamAssemblySaveConfigCommand}" selector="{RecommendationEvent.SAVE_TEAM_ASSEMBLY_CONFIG}"/>
+		<parsley:DynamicCommand type="{TeamAssembleCommand}" selector="{RecommendationEvent.ASSEMBLE_TEAM}"/>
+		<parsley:DynamicCommand type="{TeamSave4VisCommand}" selector="{RecommendationEvent.SAVE_TEAMS_4_VIS}"/>
+		
+		<parsley:DynamicCommand type="{MahoutGeneratePreferencesCommand}" selector="{RecommendationEvent.GENERATE_MAHOUT_PREFERENCES}"/>
+		<parsley:DynamicCommand type="{MahoutGetConfigCommand}" selector="{RecommendationEvent.GET_MAHOUT_CONFIG}"/>
+		<parsley:DynamicCommand type="{MahoutSaveConfigCommand}" selector="{RecommendationEvent.SAVE_MAHOUT_CONFIG}"/>
+		<parsley:DynamicCommand type="{MahoutEvaluateRecommenderCommand}" selector="{RecommendationEvent.EVALUATE_MAHOUT_RECOMMENDER}"/>
+		<parsley:DynamicCommand type="{MahoutUpdateRecommenderCommand}" selector="{RecommendationEvent.UPDATE_MAHOUT_RECOMMENDER}"/>
+		<parsley:DynamicCommand type="{MahoutGetRecommendationsCommand}" selector="{RecommendationEvent.GET_MAHOUT_RECOMMENDATIONS}"/>
+		
+		
+		<!-- Domain -->
+		
+		
+		<!-- Infrastructure -->
+
+	</fx:Declarations>
+</fx:Object>

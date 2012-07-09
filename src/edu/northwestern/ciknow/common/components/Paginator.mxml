@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:HGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx">
+
+	<fx:Metadata>
+		[Event(name="pageChange", 		type="edu.northwestern.ciknow.common.components.events.PaginateEvent")]	
+		[Event(name="totalPagesChange", type="edu.northwestern.ciknow.common.components.events.PaginateEvent")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.components.events.PaginateEvent;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			
+			import spark.components.Button;
+			import spark.components.ButtonBarButton;
+			import spark.components.ToggleButton;
+			
+			
+			private static var logger:ILogger = LogUtil.getLog(Paginator);
+			
+			private var _itemsTotal			: int = 0;
+			private var _itemsPerPage		: int = 1;
+			private var _selectedIndex		: int = 0;
+			private var _rangeCount			: int = 0;
+					
+			[Bindable]
+			private var _pageBtns:ArrayCollection = new ArrayCollection();	
+			private var _selectedBtn:PageButton;
+			private var _btnWidth:int = 40;	
+			
+			/**
+			 * how many list items per page 
+			 */	
+			public function set itemsPerPage (n:int):void
+			{
+				if (n == itemsPerPage) return;
+				logger.info("SET ITEMS PER PAGE");
+				_itemsPerPage = n;
+				update();
+			}
+			
+			public function get itemsPerPage ():int
+			{
+				return _itemsPerPage;
+			}
+			
+			/**
+			 * Total amount of items to navigate 
+			 */
+			public function set itemsTotal (n:int):void
+			{
+				if (n == itemsTotal) return;
+				logger.info("SET ITEMS TOTAL");
+				_itemsTotal = n;
+				update();				
+			}
+			
+			public function get itemsTotal ():int
+			{
+				return _itemsTotal;
+			}
+			
+			/**
+			 * The selected page index 
+			 */	
+			public function set selectedIndex (n:int):void
+			{	
+				logger.info("Set selectedIndex to: " + n);			
+				
+				var evt:PaginateEvent = new PaginateEvent (PaginateEvent.PAGE_CHANGE, true);
+				evt.index = n;
+				evt.itemsPerPage = itemsPerPage;
+				evt.itemsTotal = itemsTotal;					
+				dispatchEvent(evt);
+				
+				// store selected index
+				_selectedIndex = n;	
+				
+				// update component UI only when valid
+				if (this.initialized && pages > 0 && n >= 0 && n < pages)
+				{
+					updateSelectedButton(n);
+				}
+			}		
+			
+			public function get selectedIndex ():int
+			{
+				return _selectedIndex;
+			}
+			
+			/**
+			 * How many page buttons to display 
+			 */	
+			[Bindable]
+			public function set rangeCount (n:int):void
+			{
+				logger.info("SET rangeCount");
+				_rangeCount = n;
+				updateScrollPosition();
+			}
+			
+			public function get rangeCount ():int
+			{
+				return _rangeCount;
+			}
+		
+			[Bindable("totalPagesChange")]
+			public function get pages():Number{
+				return _pageBtns.length;
+			}
+			
+			public function get selectedBtn():PageButton{
+				return _selectedBtn;
+			}			
+			
+			private function update():void
+			{
+				logger.info("Update pages...");
+				var pageNum:Number = Math.ceil(itemsTotal/itemsPerPage);
+			
+				var i:int;
+				var pageNumChange:Boolean = true;
+				if (pages < pageNum)		
+				{
+					logger.debug("add pages");
+					for ( i = pages; i < pageNum ; i++)
+					{
+						var btn:PageButton = new PageButton(String(i+1), _btnWidth);
+						_pageBtns.addItem(btn);						
+					}
+				}
+				else if (pages > pageNum)
+				{
+					logger.debug("remove pages");
+					for ( i = pages-1; i >= pageNum ; i--)
+					{
+						_pageBtns.removeItemAt(i);
+					}
+				} else pageNumChange = false;
+				
+				if (pageNumChange){				
+					var evt:PaginateEvent = new PaginateEvent(PaginateEvent.TOTAL_PAGES_CHANGE, true);
+					evt.index = selectedIndex;
+					evt.itemsPerPage = itemsPerPage;
+					evt.itemsTotal = itemsTotal;					
+					dispatchEvent(evt);
+					
+					if (pages > 0 && selectedIndex > (pages - 1)) {
+						selectedIndex = (pages -1);
+					}
+				}
+
+				logger.debug("pages = " + pages);
+
+				updateScrollPosition();
+			}
+			
+			/**
+			 * Update the visual appearance of selectedBtn
+			 * Also (re)set the _selectedIndex without triggering an event
+			 */ 
+			public function updateSelectedButton(index:int):void{
+				_selectedIndex = index;
+				
+				// set selected button
+				logger.info("updating selected button...");
+				var item:PageButton = PageButton(_pageBtns.getItemAt(selectedIndex));
+				if(_selectedBtn != null) _selectedBtn.selected = false;
+				_selectedBtn = item;
+				_selectedBtn.selected = true;
+				//viewport.validateNow();
+				
+				// disable/enable next/previous buttons if selectedIndex is first or last page
+				prevBtn.enabled = (selectedIndex == 0 || pages == 0) ? false : true;
+				nextBtn.enabled = (selectedIndex == pages-1) ? false : true;					
+				
+				// if approriate center selected button
+				updateScrollPosition();
+			}
+			
+			private function updateScrollPosition():void{
+				if (rangeCount == 0) return;
+				logger.info("Updating scrollBar value...");				
+				var halfRange:int = Math.round(rangeCount/2);					
+				var v:Number;
+				if (_selectedIndex < halfRange -1)
+				{
+					v = 0;
+				}
+				else if (_selectedIndex > (pages - halfRange))          
+				{
+					v = Math.round((pages - rangeCount) * _btnWidth);
+				} 
+				else
+				{
+					v = Math.round((_selectedIndex+1-halfRange) * _btnWidth);
+				}
+				scroller.value = v;
+				logger.debug("scroller.value=" + v);
+			}
+			
+			/**
+			 * Next/Previous Click Event Handler
+			 */	
+			private function nudgeHandler(e:MouseEvent):void
+			{
+				if (_selectedBtn == null) return;
+				
+				switch (e.target)
+				{
+					case prevBtn:
+						if (selectedIndex > 0) --selectedIndex;
+						break;
+					case nextBtn:
+						if (selectedIndex < pages - 1) ++selectedIndex;
+						break;
+				}
+				
+			}
+			
+ 			private function onChange():void{
+				//logger.debug("value: " + scroller.value);
+			} 
+
+			protected function pageClickHandler(event:MouseEvent):void
+			{
+				var btn:ButtonBarButton = ButtonBarButton(event.target);
+
+				var index:Number = Number(btn.label) - 1;
+				if (_selectedBtn != null && selectedIndex == index) return;
+				selectedIndex = index;
+			}
+
+		]]>
+	</fx:Script>
+	
+	<s:Button id="prevBtn" 
+			  styleName="nudgeButton" 
+			  click="nudgeHandler(event)"
+			  label="&lt; Prev"
+			  visible="{pages > 1}"
+			   />
+	<s:VGroup>
+		<s:DataGroup id="viewport" 
+					 left="10" top="10"
+					 clipAndEnableScrolling="true"
+					 itemRenderer="edu.northwestern.ciknow.common.components.renderers.PageItemRenderer" 
+					 dataProvider="{_pageBtns}" click="pageClickHandler(event)">
+			<s:layout> 
+				<s:HorizontalLayout requestedColumnCount="{rangeCount}" gap="0"/> 
+			</s:layout>  
+		</s:DataGroup> 
+		
+		<s:HScrollBar id="scroller"
+					  viewport="{viewport}"
+					  width="{viewport.width}" 
+					  change="onChange()" 
+					  visible="{pages > rangeCount}" includeInLayout="{pages > rangeCount}"/>					  
+	</s:VGroup>
+	<s:Button id="nextBtn"
+			  styleName="nudgeButton"  
+			  click="nudgeHandler(event)"
+			  label="Next &gt;"
+			  visible="{pages > 1}"
+			   />
+</s:HGroup>

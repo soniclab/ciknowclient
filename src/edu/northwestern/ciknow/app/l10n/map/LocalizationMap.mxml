@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<l10n:LocaleMap 	enableLog="false"
+					xmlns:factory="mx.core.*" 
+					xmlns:mx="http://www.adobe.com/2006/mxml" 
+					xmlns:l10n="http://l10n.babelfx.org/" >
+	
+	<mx:Metadata>
+		[ResourceBundle("app")]
+		[ResourceBundle("language")]
+	</mx:Metadata>
+	
+	<mx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.l10n.views.*;
+			import edu.northwestern.ciknow.app.presentation.MainPage;
+			import edu.northwestern.ciknow.common.popup.*;
+			import edu.northwestern.ciknow.common.components.*;
+			import edu.northwestern.ciknow.common.util.*;
+			
+			import org.babelfx.commands.ExternalLocaleCommand;
+			
+			
+			/* 
+			 * Using compiler arguments -locale=en_US,es_ES,fr_FR,zh_CN -allow-source-path-overlap=true -source-path+=l10n/locale/{locale}
+		     * with the metaTag above forces the compiler to EMBED all locales as compiled resource bundles
+			 * Or use -locale="en_US" without [ResourceBundles] to force runtime loading of external bundles for es_ES, zh_CN, fr_FR
+			 * Note: you must should ANT build scripts to build and deploy the external bundles; see /build/buildResourceBundles.xml
+			 */
+			
+		]]>
+	</mx:Script>
+	
+	<!-- 
+		The command factory instance below allows the l10nInjection engine to load external resource bundles from
+	     a custom deploy directory 'assets/locales/' name encoded by locale code
+	     e.g.  en_US.swf, zh_CN.swf, etc.
+	-->
+	<l10n:commandFactory>
+		 <factory:ClassFactory generator="{ExternalLocaleCommand}">
+			 <factory:properties>
+				 <mx:Object externalPath="assets/locales/\{0\}.swf"/>
+			 </factory:properties>
+		 </factory:ClassFactory>
+	</l10n:commandFactory>	
+
+	<l10n:ResourceInjector bundleName="app" target="{MainPage}">
+		<l10n:ResourceSetter property="surveyBtn.label" key="app.survey"/>
+		<l10n:ResourceSetter property="reportBtn.label" key="app.report"/>
+		<l10n:ResourceSetter property="visualAnalyticsBtn.label" key="app.visualanalytics"/>
+		<l10n:ResourceSetter property="recommendationBtn.label" key="app.recommendation"/>
+		<l10n:ResourceSetter property="administrationBtn.label" key="app.administration"/>
+		<l10n:ResourceSetter property="documentationBtn.label" key="app.documentation"/>
+		<l10n:ResourceSetter property="logoutBtn.label" key="app.logout"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="app" target="{FileUpload}">
+		<l10n:ResourceSetter property="fileUploadTitle" key="common.fileUpload.fileUploadTitle"/>
+		<l10n:ResourceSetter property="fileUploadMessage" key="common.fileUpload.fileUploadMessage"/>
+		<l10n:ResourceSetter property="fileUploadSuccessTitle" key="common.fileUpload.fileUploadSuccessTitle"/>
+		<l10n:ResourceSetter property="fileUploadSuccessMessage" key="common.fileUpload.fileUploadSuccessMessage"/>
+		<l10n:ResourceSetter property="fileUploadFailedTitle" key="common.fileUpload.fileUploadFailedTitle"/>
+		<l10n:ResourceSetter property="fileUploadSecurityErrorMessage" key="common.fileUpload.fileUploadSecurityErrorMessage"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="app" target="{FileDownload}">
+		<l10n:ResourceSetter property="fileDownloadTitle" key="common.fileDownload.fileDownloadTitle"/>
+		<l10n:ResourceSetter property="fileDownloadMessage" key="common.fileDownload.fileDownloadMessage"/>
+		<l10n:ResourceSetter property="fileDownloadSuccessTitle" key="common.fileDownload.fileDownloadSuccessTitle"/>
+		<l10n:ResourceSetter property="fileDownloadSuccessMessage" key="common.fileDownload.fileDownloadSuccessMessage"/>
+		<l10n:ResourceSetter property="fileDownloadFailedTitle" key="common.fileDownload.fileDownloadFailedTitle"/>
+		<l10n:ResourceSetter property="fileDownloadSecurityErrorMessage" key="common.fileDownload.fileDownloadSecurityErrorMessage"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="app" target="{NodeAttributeFilter}">
+		<l10n:ResourceSetter property="selectAttributeNameMessage" key="common.nodeFilter.selectAttributeNameMessage"/>
+		<l10n:ResourceSetter property="selectAttributeOperatorMessage" key="common.nodeFilter.selectAttributeOperatorMessage"/>
+		<l10n:ResourceSetter property="selectAttributeValueMessage" key="common.nodeFilter.selectAttributeValueMessage"/>
+		<l10n:ResourceSetter property="selectFilterConditionMessage" key="common.nodeFilter.selectFilterConditionMessage"/>
+		<l10n:ResourceSetter property="nameItem.label" key="common.nodeFilter.attributeName"/>
+		<l10n:ResourceSetter property="operatorItem.label" key="common.nodeFilter.attributeOperator"/>
+		<l10n:ResourceSetter property="valueItem.label" key="common.nodeFilter.attributeValue"/>
+		<l10n:ResourceSetter property="combinationLabel.text" key="common.nodeFilter.combination"/>
+		<l10n:ResourceSetter property="nameColumn.headerText" key="common.nodeFilter.nameColumn"/>
+		<l10n:ResourceSetter property="operatorColumn.headerText" key="common.nodeFilter.operatorColumn"/>
+		<l10n:ResourceSetter property="valueColumn.headerText" key="common.nodeFilter.valueColumn"/>
+		<l10n:ResourceSetter property="getAttributeBtn.label" key="common.nodeFilter.getAttribute"/>
+		<l10n:ResourceSetter property="addBtn.label" key="common.nodeFilter.add"/>
+		<l10n:ResourceSetter property="removeBtn.label" key="common.nodeFilter.remove"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="common.nodeFilter.close"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="app" target="{EdgeAttributeFilter}">
+		<l10n:ResourceSetter property="selectAttributeNameMessage" key="common.edgeFilter.selectAttributeNameMessage"/>
+		<l10n:ResourceSetter property="selectAttributeOperatorMessage" key="common.edgeFilter.selectAttributeOperatorMessage"/>
+		<l10n:ResourceSetter property="selectAttributeValueMessage" key="common.edgeFilter.selectAttributeValueMessage"/>
+		<l10n:ResourceSetter property="selectFilterConditionMessage" key="common.edgeFilter.selectFilterConditionMessage"/>
+		<l10n:ResourceSetter property="nameItem.label" key="common.edgeFilter.attributeName"/>
+		<l10n:ResourceSetter property="operatorItem.label" key="common.edgeFilter.attributeOperator"/>
+		<l10n:ResourceSetter property="valueItem.label" key="common.edgeFilter.attributeValue"/>
+		<l10n:ResourceSetter property="combinationLabel.text" key="common.edgeFilter.combination"/>
+		<l10n:ResourceSetter property="nameColumn.headerText" key="common.edgeFilter.nameColumn"/>
+		<l10n:ResourceSetter property="operatorColumn.headerText" key="common.edgeFilter.operatorColumn"/>
+		<l10n:ResourceSetter property="valueColumn.headerText" key="common.edgeFilter.valueColumn"/>
+		<l10n:ResourceSetter property="getAttributeBtn.label" key="common.edgeFilter.getAttribute"/>
+		<l10n:ResourceSetter property="addBtn.label" key="common.edgeFilter.add"/>
+		<l10n:ResourceSetter property="removeBtn.label" key="common.edgeFilter.remove"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="common.edgeFilter.close"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector  bundleName="language" target="{LanguageBox}">
+		<l10n:ResourceSetter 		property="lblBarHelp.text" 				key="languagebar.title"/>
+		
+		<!-- See LocaleAssets for sort order on Flags -->
+		<l10n:ResourceSetter  	property="items[0].label" 			key="flag.toolTip.en_US" />
+		<l10n:ResourceSetter  	property="items[1].label" 			key="flag.toolTip.fr_FR" />
+		<l10n:ResourceSetter  	property="items[2].label" 			key="flag.toolTip.es_ES" />
+		<l10n:ResourceSetter  	property="items[3].label" 			key="flag.toolTip.zh_CN" />
+		<l10n:ResourceSetter  	property="items[4].label" 			key="flag.toolTip.de_DE" />
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector  bundleName="language" target="{LanguageBar}">
+		<l10n:ResourceSetter 		property="lblBarHelp.text" 				key="languagebar.title"/>
+		
+		<!-- See LocaleAssets for sort order on Flags -->
+		<l10n:ResourceSetter  	property="flags[0].toolTip" 			key="flag.toolTip.en_US" />
+		<l10n:ResourceSetter  	property="flags[1].toolTip" 			key="flag.toolTip.fr_FR" />
+		<l10n:ResourceSetter  	property="flags[2].toolTip" 			key="flag.toolTip.es_ES" />
+		<l10n:ResourceSetter  	property="flags[3].toolTip" 			key="flag.toolTip.zh_CN" />
+		<l10n:ResourceSetter  	property="flags[4].toolTip" 			key="flag.toolTip.de_DE" />
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector  bundleName="language" target="{LanguageTile}">
+		<l10n:ResourceSetter 		property="lblBarHelp.text" 				key="languagebar.title"/>
+		
+		<!-- See LocaleAssets for sort order on Flags -->
+		<l10n:ResourceSetter  	property="flags[0].toolTip" 			key="flag.toolTip.en_US" />
+		<l10n:ResourceSetter  	property="flags[1].toolTip" 			key="flag.toolTip.fr_FR" />
+		<l10n:ResourceSetter  	property="flags[2].toolTip" 			key="flag.toolTip.es_ES" />
+		<l10n:ResourceSetter  	property="flags[3].toolTip" 			key="flag.toolTip.zh_CN" />
+		<l10n:ResourceSetter  	property="flags[4].toolTip" 			key="flag.toolTip.de_DE" />
+	</l10n:ResourceInjector>
+
+</l10n:LocaleMap>

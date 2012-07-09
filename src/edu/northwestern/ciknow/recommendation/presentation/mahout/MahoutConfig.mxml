@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 creationComplete="init()" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[			
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.utils.StringUtil;
+			
+			private static var logger:ILogger = LogUtil.getLog(MahoutConfig);
+			
+			[Bindable] 
+			private var relations:ArrayCollection;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable] 
+			public var sm:SharedModel;
+			
+			
+			private function init():void{
+				logger.debug("initializing...");
+				
+				getConfig();
+			}
+
+			[MessageHandler(selector="gotMahoutConfig")]
+			public function configHandler(event:RecommendationEvent):void{
+				logger.debug("got current recommender configuration from server.");
+				var config:Object = event.data;
+				
+				var recType:String = String(config.recType);
+				recTypeBox.selectedItem = getItem(sm.mahoutRecTypes, recType);
+				onRecTypeChange();
+				
+				var simType:String = String(config.simType);
+				simTypeBox.selectedItem = getItem(sm.mahoutSimTypes, simType);
+				onSimTypeChange();
+				
+				var neighborhoodType:String = String(config.neighborhoodType);
+				neighborhoodTypeBox.selectedItem = getItem(sm.mahoutNeighborhoodTypes, neighborhoodType);
+				onNeighborhoodTypeChange();
+				
+				if (neighborhoodType == Constants.MAHOUT_NEIGHBORHOOD_NEARESTN){
+					var size:String = String(config.neighborhoodSize);
+					neighborhoodSize.text = size;
+				} else if (neighborhoodType == Constants.MAHOUT_NEIGHBORHOOD_THRESHOLD){
+					var threshold:String = String(config.neighborhoodThreshold);
+					neighborhoodThreshold.text = threshold;
+				}
+			}
+			
+			private function getItem(arr:ArrayCollection, itemData:String):Object{
+				for each (var o:Object in arr){
+					if (o.data == itemData) return o;
+				}
+				return null;
+			}
+			
+			/****************** User Interface Interaction *********************************************/
+			private function onRecTypeChange():void{
+				if (recTypeBox.selectedItem == null) {
+					logger.debug("No recommender type is selected.");
+					return;
+				}
+				
+				if (recTypeBox.selectedItem.data == Constants.MAHOUT_RECOMMENDER_TYPE_USER){
+					simItem.visible = true;
+					simItem.includeInLayout = true;
+					neighborhoodItem.visible = true;
+					neighborhoodItem.includeInLayout = true;
+				} else if (recTypeBox.selectedItem.data == Constants.MAHOUT_RECOMMENDER_TYPE_USER_BOOLEAN){
+					simItem.visible = true;
+					simItem.includeInLayout = true;
+					neighborhoodItem.visible = true;
+					neighborhoodItem.includeInLayout = true;
+					simTypeBox.selectedIndex = 5; // must be loglikelihood
+					evalTypeBox.selectedIndex = 1; // must be IR stat 
+					onEvaluationTypeChange();
+				} else if (recTypeBox.selectedItem.data == Constants.MAHOUT_RECOMMENDER_TYPE_ITEM){
+					simItem.visible = true;
+					simItem.includeInLayout = true;
+					neighborhoodItem.visible = false;
+					neighborhoodItem.includeInLayout = false;
+				} else if (recTypeBox.selectedItem.data == Constants.MAHOUT_RECOMMENDER_TYPE_SLOPEONE){
+					simItem.visible = false;
+					simItem.includeInLayout = false;
+					neighborhoodItem.visible = false;
+					neighborhoodItem.includeInLayout = false;
+				}
+			}
+			
+			private function onSimTypeChange():void{
+				if (simTypeBox.selectedItem == null) {
+					logger.debug("No similarity is selected.");
+					return;
+				}
+				
+				if (simTypeBox.selectedItem.data == Constants.MAHOUT_SIMILARITY_SPEARMAN){
+					if (recTypeBox.selectedItem.data == Constants.MAHOUT_RECOMMENDER_TYPE_ITEM){
+						Alert.show(Constants.MAHOUT_SIMILARITY_SPEARMAN + " is not available for Item based recommender");
+						simTypeBox.selectedIndex = 0;
+						return;
+					}
+				}
+			}
+			
+			private function onNeighborhoodTypeChange():void{
+				if (neighborhoodTypeBox.selectedItem == null){
+					logger.debug("No neighborhood type is selected.");
+					return;
+				}
+				
+				if (neighborhoodTypeBox.selectedItem.data == Constants.MAHOUT_NEIGHBORHOOD_NEARESTN){
+					sizeBox.visible = true;
+					sizeBox.includeInLayout = true;
+					thresholdBox.visible = false;
+					thresholdBox.includeInLayout = false;
+				} else if (neighborhoodTypeBox.selectedItem.data == Constants.MAHOUT_NEIGHBORHOOD_THRESHOLD){
+					sizeBox.visible = false;
+					sizeBox.includeInLayout = false;
+					thresholdBox.visible = true;
+					thresholdBox.includeInLayout = true;
+				}
+			}
+			
+			private function onEvaluationTypeChange():void{
+				if (evalTypeBox.selectedItem == null){
+					logger.debug("No evaluation type is selected.");
+					return;
+				}
+				
+				if (evalTypeBox.selectedItem.data == Constants.MAHOUT_EVALUATION_TYPE_DIFF){
+					diffItem.visible = true;
+					diffItem.includeInLayout = true;
+					irItem.visible = false;
+					irItem.includeInLayout = false;
+				} else if (evalTypeBox.selectedItem.data == Constants.MAHOUT_EVALUATION_TYPE_IR){
+					diffItem.visible = false;
+					diffItem.includeInLayout = false;
+					irItem.visible = true;
+					irItem.includeInLayout = true;
+				} else if (evalTypeBox.selectedItem.data == Constants.MAHOUT_EVALUATION_TYPE_PERFORMANCE){
+					diffItem.visible = false;
+					diffItem.includeInLayout = false;
+					irItem.visible = false;
+					irItem.includeInLayout = false;
+				}
+			}
+			
+			/**************************** ControlBar Operations ********************************************/
+			private function getConfig():void{
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.GET_MAHOUT_CONFIG);
+				dispatcher(e);
+			}
+			
+			private function saveConfig():void{
+				logger.info("save configuration for runtime ...");
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.SAVE_MAHOUT_CONFIG);
+				var params:Object = getRecommenderParams();
+				if (params == null) return;
+				e.data = params;
+				dispatcher(e);
+			}
+			
+			private function evaluate():void{
+				logger.info("evaluating recommender ...");
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.EVALUATE_MAHOUT_RECOMMENDER);
+				
+				var params:Object = getRecommenderParams();
+				if (params == null) return;
+				e.data.config = params;
+				
+				params = getEvaluationParams();
+				if (params == null) return;
+				e.data.evaluation = params;
+				
+				dispatcher(e);
+			}
+			
+			private function updateRecommender():void{
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.UPDATE_MAHOUT_RECOMMENDER);
+				dispatcher(e);
+			}
+			
+
+			private function getRecommenderParams():Object{
+				if (recTypeBox.selectedItem == null){
+					Alert.show("Please select a recommender.");
+					return null;
+				}
+				
+				var params:Object = new Object();
+				params.recType = recTypeBox.selectedItem.data;
+				if (simTypeBox.selectedItem != null) params.simType = simTypeBox.selectedItem.data;
+				if (neighborhoodTypeBox.selectedItem != null) params.neighborhoodType = neighborhoodTypeBox.selectedItem.data;
+				params.neighborhoodSize = StringUtil.trim(neighborhoodSize.text);
+				params.neighborhoodThreshold = StringUtil.trim(neighborhoodThreshold.text);
+				return params;
+			}
+			
+			private function getEvaluationParams():Object{
+				if (evalTypeBox.selectedItem == null){
+					Alert.show("Please select an evaluation strategy.");
+					return null;
+				}
+				
+				var params:Object = new Object();
+				params.evalType = evalTypeBox.selectedItem.data;
+				
+				if (evalDiffTypeBox.selectedItem != null) {
+					params.evalDiffType = evalDiffTypeBox.selectedItem.data;
+					params.trainingRatio = StringUtil.trim(trainingRatio.text);
+					params.evaluationRatio = StringUtil.trim(evaluationRatio.text);
+				}
+				
+				params.at = StringUtil.trim(at.text);
+				params.relevanceThreshold = StringUtil.trim(relevanceThreshold.text);
+				params.irEvaluationRatio = StringUtil.trim(irEvaluationRatio.text);
+				
+				return params;
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Form id="mahoutForm">
+		<s:FormItem label="*Note*">
+			<s:RichText maxWidth="400" text="If your data does not have pref values, or only single value, {Constants.MAHOUT_RECOMMENDER_TYPE_USER_BOOLEAN}, {Constants.MAHOUT_SIMILARITY_LOG} and {Constants.MAHOUT_EVALUATOR_GENERIC_IRSTATS} should be used."/>
+		</s:FormItem>
+		<s:FormItem label="Recommender">
+			<s:DropDownList id="recTypeBox" width="400"
+							dataProvider="{sm.mahoutRecTypes}" 
+							labelField="label" 
+							change="onRecTypeChange()"/>				
+		</s:FormItem>
+		<s:FormItem id="simItem" label="Similarity">
+			<s:DropDownList id="simTypeBox" width="400"
+							dataProvider="{sm.mahoutSimTypes}" 
+							labelField="label" 
+							change="onSimTypeChange()"/>
+		</s:FormItem>
+		<s:FormItem id="neighborhoodItem" label="Neighborhood">
+			<s:DropDownList id="neighborhoodTypeBox" width="400" 
+							dataProvider="{sm.mahoutNeighborhoodTypes}" 
+							labelField="label" 
+							change="onNeighborhoodTypeChange()"/>
+			<s:HGroup id="sizeBox" verticalAlign="baseline">
+				<s:Label text="Neighborhood Size:"/>
+				<s:TextInput id="neighborhoodSize" text="10"/>
+			</s:HGroup>
+			<s:HGroup id="thresholdBox" verticalAlign="baseline" visible="false" includeInLayout="false">
+				<s:Label text="Neighborhood Threshold:"/>
+				<s:TextInput id="neighborhoodThreshold" text="0.7"/>
+			</s:HGroup>
+		</s:FormItem>
+		
+		<s:FormItem label="Evaluation">
+			<s:DropDownList id="evalTypeBox" width="400" 
+							dataProvider="{sm.mahoutEvaluationTypes}" 
+							labelField="label" 
+							change="onEvaluationTypeChange()"/>
+		</s:FormItem>
+		<s:FormItem id="diffItem" label="Difference Evaluator Parameters">
+			<s:DropDownList id="evalDiffTypeBox" width="400" 
+							dataProvider="{sm.mahoutEvaluationDiffTypes}" 
+							labelField="label"/>
+			<s:HGroup verticalAlign="baseline">
+				<s:Label text="Training Percentage (0~1):"/>
+				<s:TextInput id="trainingRatio" text="0.8"/>
+			</s:HGroup>
+			<s:HGroup verticalAlign="baseline">
+				<s:Label text="Evaluation Percentage (0~1):"/>
+				<s:TextInput id="evaluationRatio" text="1"/>
+			</s:HGroup>
+		</s:FormItem>
+		<s:FormItem id="irItem" label="Information Retrieval Statistics" visible="false" includeInLayout="false">
+			<s:HGroup verticalAlign="baseline">
+				<s:Label text="at:"/>
+				<s:TextInput id="at" text="20"/>
+			</s:HGroup>
+			<s:HGroup verticalAlign="baseline">
+				<s:Label text="Relevance Threshold (0~1):"/>
+				<s:TextInput id="relevanceThreshold" text="0.7"/>
+			</s:HGroup>
+			<s:HGroup verticalAlign="baseline">
+				<s:Label text="Evaluation Percentage (0~1):"/>
+				<s:TextInput id="irEvaluationRatio" text="1"/>
+			</s:HGroup>
+		</s:FormItem>			
+	</s:Form>
+	
+	<s:controlBarContent>		
+		<s:Button label="Reset Config" click="getConfig()"/>
+		<s:Button label="Save Config" click="saveConfig()"/>
+		<s:Button label="Evaluate" click="evaluate()"/>
+		<s:Button label="Update Recommender In Server" click="updateRecommender()"/>
+	</s:controlBarContent>	
+</s:Panel>

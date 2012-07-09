@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:util="edu.northwestern.ciknow.common.util.*" 
+		   xmlns:domain="edu.northwestern.ciknow.common.domain.*" 
+		   xmlns:parsley="http://www.spicefactory.org/parsley" 
+		   xmlns:presentation="edu.northwestern.ciknow.administration.presentation.*" 
+		   xmlns:data="com.adobe.cairngorm.integration.data.*" 
+		   xmlns:node="edu.northwestern.ciknow.administration.presentation.node.*" 
+		   xmlns:survey="edu.northwestern.ciknow.administration.presentation.survey.*">
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.administration.controller.*;
+			import edu.northwestern.ciknow.common.events.*;
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- Presentation -->
+		<node:NodePM/>
+		
+		<!-- Application -->
+		<parsley:DynamicCommand type="{SurveyUpdateCommand}" selector="{SurveyEvent.UPDATE_SURVEY}"/>
+		<parsley:DynamicCommand type="{SurveyApplyLoginModeCommand}" selector="{NodeEvent.APPLY_LOGIN_MODE}"/>
+		<parsley:DynamicCommand type="{SurveyGeneratePasswordCommand}" selector="{NodeEvent.GENERATE_PASSWORD}"/>
+		<!--
+		<parsley:DynamicCommand type="{GetPlainNodesCommand}" selector="{NodeDTOEvent.GET_PLAIN_NODES}"/>
+		-->
+		<parsley:DynamicCommand type="{NodeLoadCommand}" selector="{NodeEvent.LOAD_CURRENT_NODE}"/>		
+		<parsley:DynamicCommand type="{NodesGetByCriteriaCommand}" selector="{NodeEvent.GET_NODES_BY_CRITERIA}"/>
+		<parsley:DynamicCommand type="{NodeUpdateCommand}" selector="{NodeEvent.UPDATE_NODE}"/>		
+		<parsley:DynamicCommand type="{NodesDeleteCommand}" selector="{NodeEvent.DELETE_NODES}"/>
+		<parsley:DynamicCommand type="{NodesClearDataCommand}" selector="{NodeEvent.CLEAR_DATA}"/>
+		<parsley:DynamicCommand type="{CheckUsernameAvailabilityCommand}" selector="{NodeEvent.CHECK_USERNAME_AVAILABILITY}"/>
+		<parsley:DynamicCommand type="{CheckNodeAttributeAvailabilityCommand}" selector="{NodeEvent.CHECK_ATTR_NAME_AVAILABILITY}"/>
+		<parsley:DynamicCommand type="{NodeDeleteAttributeByNameCommand}" selector="{NodeEvent.DELETE_ATTRIBUTE_BY_NAME}"/>				
+		<parsley:DynamicCommand type="{NodeGetNumericAttributesCommand}" selector="{GeneralEvent.GET_NUMERIC_ATTRIBUTES}"/>
+		<parsley:DynamicCommand type="{NodeGetNumericAttributes4SICommand}" selector="{GeneralEvent.GET_NUMERIC_ATTRIBUTES_FOR_SOCIAL_INFERENCE}"/>		
+		<parsley:DynamicCommand type="{NodeGetPropertyValuesCommand}" selector="{GeneralEvent.GET_PROPERTY_VALUES}"/>
+		
+		<parsley:DynamicCommand type="{SaveNodeTypeDescriptionsCommand}" selector="{NodeEvent.SAVE_NODE_TYPE_DESCRIPTIONS}"/>
+		<parsley:DynamicCommand type="{SaveEdgeTypeDescriptionsCommand}" selector="{EdgeEvent.SAVE_EDGE_TYPE_DESCRIPTIONS}"/>
+		
+		<parsley:DynamicCommand type="{EdgeDeleteByTypeCommand}" selector="{EdgeEvent.DELETE_EDGES_BY_TYPE}"/>		
+		<parsley:DynamicCommand type="{GetEdgeTypesByNodeTypesCommand}" selector="{EdgeEvent.GET_EDGE_TYPES_BY_NODE_TYPES}"/>		
+		
+		<parsley:DynamicCommand type="{DeriveEdgesByRelationCommand}" selector="{EdgeEvent.DERIVE_EDGES_BY_RELATION}"/>
+		<parsley:DynamicCommand type="{DeriveEdgesByAttributeCommand}" selector="{EdgeEvent.DERIVE_EDGES_BY_ATTRIBUTE}"/>
+		<parsley:DynamicCommand type="{DeriveEdgesByContactChooserCommand}" selector="{EdgeEvent.DERIVE_EDGES_BY_CC}"/>
+		<parsley:DynamicCommand type="{DeriveEdgesBySymmetrizationCommand}" selector="{EdgeEvent.SYMMETRIZE_EDGE}"/>
+		<parsley:DynamicCommand type="{DeriveAttributesByProductCommand}" selector="{NodeEvent.DERIVE_BY_PRODUCT}"/>
+		<parsley:DynamicCommand type="{DeriveAttributesByAnalyticsCommand}" selector="{NodeEvent.DERIVE_BY_ANALYTICS}"/>
+		<parsley:DynamicCommand type="{DeriveAttributesByEquationCommand}" selector="{NodeEvent.DERIVE_BY_EQUATION}"/>
+		<parsley:DynamicCommand type="{DeriveAttributesBySocialInfluenceCommand}" selector="{NodeEvent.DERIVE_BY_SOCIAL_INFLUENCE}"/>
+		<parsley:DynamicCommand type="{DeriveAttributesBySurveyProgressCommand}" selector="{NodeEvent.DERIVE_BY_PROGRESS}"/>
+		
+		<parsley:DynamicCommand type="{GroupGetPlainNodesCommand}" selector="{GroupEvent.GET_PLAIN_NODES_BY_GROUP_ID}"/>
+		<parsley:DynamicCommand type="{GroupAddNodeCommand}" selector="{GroupEvent.ADD_NODE_TO_GROUP}"/>
+		<parsley:DynamicCommand type="{GroupRemoveNodeCommand}" selector="{GroupEvent.REMOVE_NODE_FROM_GROUP}"/>
+		<parsley:DynamicCommand type="{GroupCreateCommand}" selector="{GroupEvent.CREATE_GROUP}"/>
+		<parsley:DynamicCommand type="{GroupUpdateCommand}" selector="{GroupEvent.UPDATE_GROUP}"/>
+		<parsley:DynamicCommand type="{GroupDeleteCommand}" selector="{GroupEvent.DELETE_GROUP}"/>
+		
+		<parsley:DynamicCommand type="{RoleGetPlainNodesCommand}" selector="{RoleEvent.GET_PLAIN_NODES_BY_ROLE_ID}"/>
+		<parsley:DynamicCommand type="{RoleAddNodeCommand}" selector="{RoleEvent.ADD_NODE_TO_ROLE}"/>
+		<parsley:DynamicCommand type="{RoleRemoveNodeCommand}" selector="{RoleEvent.REMOVE_NODE_FROM_ROLE}"/>
+		<parsley:DynamicCommand type="{RoleCreateCommand}" selector="{RoleEvent.CREATE_ROLE}"/>
+		<parsley:DynamicCommand type="{RoleUpdateCommand}" selector="{RoleEvent.UPDATE_ROLE}"/>
+		<parsley:DynamicCommand type="{RoleDeleteCommand}" selector="{RoleEvent.DELETE_ROLE}"/>
+		
+		<parsley:DynamicCommand type="{InviteGetUserStatusMapCommand}" selector="{GeneralEvent.GET_USER_STATUS_MAP}"/>
+		<parsley:DynamicCommand type="{InviteUsersCommand}" selector="{GeneralEvent.INVITE_USERS}"/>
+		
+		<parsley:DynamicCommand type="{VisGetColorsCommand}" selector="{GeneralEvent.GET_VIS_COLORS}"/>
+		<parsley:DynamicCommand type="{VisSaveColorsCommand}" selector="{GeneralEvent.SAVE_VIS_COLORS}"/>
+		
+		<parsley:DynamicCommand type="{ScheduledJobGetCommand}" selector="{GeneralEvent.GET_SCHEDULED_JOBS}"/>
+		<parsley:DynamicCommand type="{ScheduledJobDeleteCommand}" selector="{GeneralEvent.DELETE_SCHEDULED_JOB}"/>
+		<parsley:DynamicCommand type="{ScheduledJobUpdateCommand}" selector="{GeneralEvent.UPDATE_SCHEDULED_JOB}"/>
+		
+		<parsley:DynamicCommand type="{RecommendationComputeCommand}" selector="{RecommendationEvent.COMPUTE_RECOMMENDATIONS}"/>
+		<parsley:DynamicCommand type="{RecommendationConfigGetCommand}" selector="{RecommendationEvent.GET_REC_CONFIG}"/>
+		<parsley:DynamicCommand type="{RecommendationConfigUpdateCommand}" selector="{RecommendationEvent.UPDATE_REC_CONFIG}"/>		
+		
+	</fx:Declarations>
+</fx:Object>

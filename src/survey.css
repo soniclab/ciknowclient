@@ -1,0 +1,52 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+
+.instruction{
+	backgroundColor: #FFF5EE; 		/* sea shell */
+	
+	cornerRadius: 5;
+	borderStyle: solid;
+	borderThickness: 1;
+	borderColor: #F5DEB3; 			/* wheat */
+	
+	/*
+	dropShadowEnabled: true; 
+	shadowDirection: center;
+	shadowDistance: 2;
+	*/
+}
+
+.headerLabel{
+	textAlign:center;
+	fontWeight:bold;
+	fontStyle:italic;
+}
+
+.fieldLabel{	
+	textAlign:left;
+	fontWeight:bold;
+	verticalAlign:middle;
+	backgroundColor: #FFFFFF;
+}
+
+.fieldLabel_even{
+	textAlign:left;
+	fontWeight:bold;
+	verticalAlign:middle;
+	backgroundColor: #F5F5DC;
+}
+
+.nameLabel{
+	textAlign:left;
+	fontWeight:bold;
+	verticalAlign:middle;
+	backgroundColor: #FFFFFF;
+}
+
+.nameLabel_even{
+	textAlign:left;
+	fontWeight:bold;	
+	verticalAlign:middle;
+	backgroundColor: #F5F5DC;
+}

@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 creationComplete="init()"
+		 styleName="headlessPanel" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:NumberValidator id="numTeamsV" required="true" domain="int" minValue="1" source="{numTeamsBox}" property="text"/>
+		<s:NumberValidator id="minTeamSizeV" required="true" domain="int" minValue="1" source="{minTeamSizeBox}" property="text"/>
+		<s:NumberValidator id="maxTeamSizeV" required="true" domain="int" minValue="1" source="{maxTeamSizeBox}" property="text"/>
+		<s:NumberValidator id="iterationsV" required="true" domain="int" minValue="1" source="{iterations}" property="text"/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.GroupDTO;
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.RecommendationEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.recommendation.RecommendationContext;
+			import edu.northwestern.ciknow.recommendation.presentation.popup.TeamAssemblyConfigPopup;
+			import edu.northwestern.ciknow.recommendation.presentation.popup.TeamAssemblyResultPopup;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Button;
+			import mx.events.ValidationResultEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.utils.StringUtil;
+			import mx.validators.ValidationResult;
+			import mx.validators.Validator;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static var logger:ILogger = LogUtil.getLog(TeamAssembly);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			[Bindable]
+			private var teamQuestions:ArrayCollection = new ArrayCollection();
+			private var results:Object = null;
+			
+			public var invalidInputMessage:String = "Invalid number input.";
+			public var selectNodeGroupMessage:String = "Please select groups of nodes first.";
+			public var selectDiversityMessage:String = "Please select diversity question.";			
+			public var selectSimilarityMessage:String = "Please select similarity question.";
+			public var selectNetworkMessage:String = "Please select network.";
+
+			public var totalNodesPrefix:String = "Total Nodes:";
+			public var minTeamPrefix:String = "Should be equal or less than:";
+			public var maxTeamPrefix:String = "Should be equal or more than:";
+			
+			private function init():void{
+				logger.debug("initializing...");			
+				if (sm.mainPageHeight > 0) {
+					scroller.height = sm.mainPageHeight - 72;
+					scroller.width = sm.mainPageWidth;
+				}
+				
+				for each (var q:QuestionDTO in sm.questions){
+					if (q.type == Constants.QUESTION_TYPE_CHOICE){
+						teamQuestions.addItem(q);
+					}
+				}				
+				logger.debug("there are " + teamQuestions.length + " eligible questions.");
+
+				logger.debug("initialized.");
+			}					
+			
+			private function getSuggestion():void{
+				var groups:Vector.<Object> = groupBox.selectedItems;
+				if (groups == null || groups.length == 0){
+					Alert.show(selectNodeGroupMessage);
+					return;
+				}
+				
+				var vre:ValidationResultEvent = numTeamsV.validate();
+				if (vre.results != null && vre.results.length > 0) {
+					Alert.show(invalidInputMessage);
+					return;
+				}
+				
+				var groupIds:ArrayCollection = new ArrayCollection();
+				for each (var group:GroupDTO in groups){
+					groupIds.addItem(group.groupId.toString());
+				}
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.GET_TEAM_ASSEMBLY_SUGGESTION);
+				e.data.groupIds = groupIds;
+				e.data.numTeams = StringUtil.trim(numTeamsBox.text);
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotTeamAssemblySuggestion")]
+			public function suggestionHandler(e:RecommendationEvent):void{				
+				var result:Object = e.data;
+				totalMsg.text = totalNodesPrefix + " " + result.total;
+				minMsg.text = minTeamPrefix + " " + result.min;
+				maxMsg.text = maxTeamPrefix + " " + result.max;
+				minTeamSizeBox.text = result.min;
+				maxTeamSizeBox.text = result.max;
+			}
+
+			
+			private function config():void{
+				var diversityQuestion:QuestionDTO = diversityBox.selectedItem as QuestionDTO;
+				if (diversityQuestion == null) {
+					Alert.show(selectDiversityMessage);
+					return;
+				}	
+				
+				var p:TeamAssemblyConfigPopup = new TeamAssemblyConfigPopup();
+				p.diversityQuestion = diversityQuestion;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+			}
+			
+			private function assemble():void{
+				var validators:Array = [numTeamsV, minTeamSizeV, maxTeamSizeV, iterationsV];
+				var results:Array = Validator.validateAll(validators);
+				if (results.length > 0) {
+					Alert.show(invalidInputMessage);
+					return;
+				}
+				if (diversityBox.selectedItem == null){
+					Alert.show(selectDiversityMessage);
+					return;
+				}
+				if (similarityBox.selectedItem == null){
+					Alert.show(selectSimilarityMessage);
+					return;
+				}
+				if (groupBox.selectedItem == null){
+					Alert.show(selectNodeGroupMessage);
+					return;
+				}
+				if (teamNetworkBox.selectedItem == null){
+					Alert.show(selectNetworkMessage);
+					return;
+				}						
+				
+				var numTeams:String = StringUtil.trim(numTeamsBox.text);
+				var minTeamSize:String = StringUtil.trim(minTeamSizeBox.text);
+				var maxTeamSize:String = StringUtil.trim(maxTeamSizeBox.text);
+				var diversityQuestion:QuestionDTO = diversityBox.selectedItem as QuestionDTO;
+				var similarityQuestion:QuestionDTO = similarityBox.selectedItem as QuestionDTO;
+				
+				var edgeTypes:ArrayCollection = new ArrayCollection();
+				for each(var ed:Object in teamNetworkBox.selectedItems){
+					edgeTypes.addItem(ed.type);
+				}
+				var groupIds:ArrayCollection = new ArrayCollection();
+				for each (var group:GroupDTO in groupBox.selectedItems){
+					groupIds.addItem(String(group.groupId));
+				}
+				
+				var e:RecommendationEvent = new RecommendationEvent(RecommendationEvent.ASSEMBLE_TEAM);
+				e.data.numTeams = numTeams;
+				e.data.minTeamSize = minTeamSize;
+				e.data.maxTeamSize = maxTeamSize;
+				e.data.diversityQuestionShortName = diversityQuestion.shortName;
+				e.data.similarityQuestionId = String(similarityQuestion.questionId);
+				e.data.edgeTypes = edgeTypes;
+				e.data.groupIds = groupIds;
+				e.data.iterations = StringUtil.trim(iterations.text);
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="assembledTeam")]
+			public function teamsHandler(e:RecommendationEvent):void{				
+				results = e.data;
+				showResultsBtn.visible = true;
+				showResults();
+			}
+
+			
+			private function showResults():void{
+				var p:TeamAssemblyResultPopup = new TeamAssemblyResultPopup();
+				p.results = results;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);				
+			}
+			
+			
+			
+			[MessageHandler(selector="RESIZE")]		
+			public function onResize(e:GeneralEvent):void{	
+				var moduleHeight:Number = Number(e.data.height);
+				var moduleWidth:Number = Number(e.data.width);
+				scroller.height = moduleHeight - 72;
+				scroller.width = moduleWidth;
+				logger.info("Set Scroller Size: width=" + scroller.width + ", height=" + scroller.height);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Scroller id="scroller">
+		<s:VGroup width="100%" height="100%">
+			<s:Form>
+				<s:FormItem id="nodeGroupItem" label="Select Nodes By Groups">
+					<s:List id="groupBox" 
+							dataProvider="{sm.groups}" labelField="name" 
+							allowMultipleSelection="true" width="400">
+						<s:layout>
+							<s:VerticalLayout gap="0" horizontalAlign="contentJustify" requestedRowCount="6"/>
+						</s:layout>
+					</s:List>
+				</s:FormItem>
+				<s:FormItem id="numTeamItem" label="Number of Teams">
+					<s:HGroup verticalAlign="baseline">
+						<s:TextInput id="numTeamsBox" width="100"/>
+						<s:Button id="getSuggestionBtn" click="getSuggestion()" label="Get Suggestion"/>	
+						<s:Label id="totalMsg" color="green"/>				
+					</s:HGroup>
+				</s:FormItem>
+				<s:FormItem id="minTeamSizeItem" label="Min Team Size">
+					<s:HGroup verticalAlign="baseline">
+						<s:TextInput id="minTeamSizeBox" width="100"/>		
+						<s:Label id="minMsg" color="green"/>				
+					</s:HGroup>
+				</s:FormItem>
+				<s:FormItem id="maxTeamSizeItem" label="Max Team Size">
+					<s:HGroup verticalAlign="baseline">
+						<s:TextInput id="maxTeamSizeBox" width="100"/>		
+						<s:Label id="maxMsg" color="green"/>
+					</s:HGroup>
+				</s:FormItem>								
+				<s:FormItem id="diversityItem" label="Diversity Question">
+					<s:List id="diversityBox" dataProvider="{teamQuestions}" labelField="label" width="400">
+						<s:layout>
+							<s:VerticalLayout gap="0" horizontalAlign="contentJustify" requestedRowCount="6"/>
+						</s:layout>
+					</s:List>
+				</s:FormItem>
+				<s:FormItem id="similarityItem" label="Similarity Question" width="100%">
+					<s:List id="similarityBox" dataProvider="{teamQuestions}" labelField="label" width="400">
+						<s:layout>
+							<s:VerticalLayout gap="0" horizontalAlign="contentJustify" requestedRowCount="6"/>
+						</s:layout>
+					</s:List>
+				</s:FormItem>						
+				<s:FormItem id="densityItem" label="Max(density)">
+					<s:List id="teamNetworkBox" 
+							dataProvider="{sm.edgeTypeDescriptions}" labelField="label" width="400"
+							allowMultipleSelection="true">
+						<s:layout>
+							<s:VerticalLayout gap="0" horizontalAlign="contentJustify" requestedRowCount="6"/>
+						</s:layout>
+					</s:List>
+				</s:FormItem>
+				<s:FormItem id="iterationItem" label="Iterations">
+					<s:TextInput id="iterations" width="100" text="10"/>
+					<s:Label id="iterationNote" text="More iterations might yield better quality results, but will require longer waiting time."/>				
+				</s:FormItem>	
+			</s:Form>
+		</s:VGroup>
+	</s:Scroller>	
+	
+	<s:controlBarContent>
+		<s:Button id="configBtn" label="Config" click="config()"/>
+		<s:Button id="assembleBtn" label="Assemble" click="assemble()"/>
+		<s:Button id="showResultsBtn" label="Show Previous Results" click="showResults()" visible="false"/>
+	</s:controlBarContent>
+</s:Panel>

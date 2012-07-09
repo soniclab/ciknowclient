@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   close="close()" creationComplete="init()"
+			   title="Node Attribute Name Check"
+			   xmlns:parsley="http://www.spicefactory.org/parsley">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Bindable] public var exist:Boolean = false;
+			public var attrName:String = null;
+			
+			public var titlePrefix:String = "";
+			public var availableMessage:String = "";
+			public var notAvailableMessage:String = "";
+			public var deleteMessage:String = "";
+			
+			private function init():void{
+				this.title = titlePrefix + " " + attrName;
+				if (exist){
+					msg.text = notAvailableMessage;
+				} else {
+					msg.text = availableMessage;
+				}
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function tryDeleteAttr():void{
+				Alert.show(deleteMessage, "", Alert.YES|Alert.NO, null, deleteAttr);
+			}
+			
+			private function deleteAttr(event:CloseEvent):void{
+				if (event.detail != Alert.YES) return;
+				
+				var e:NodeEvent = new NodeEvent(NodeEvent.DELETE_ATTRIBUTE_BY_NAME);
+				e.data = attrName;
+				dispatcher(e);
+				
+				close();			
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Label id="msg" width="380"/>
+	
+	<s:controlBarContent>
+		<mx:Button id="closeBtn" label="Close" click="close()"/>
+		<mx:Button id="deleteBtn" label="Delete" click="tryDeleteAttr()" visible="{exist}" includeInLayout="{exist}"/>
+	</s:controlBarContent>
+</s:TitleWindow>

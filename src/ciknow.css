@@ -1,0 +1,232 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace common "edu.northwestern.ciknow.common.components.*";
+
+global{
+	font-size: 12;
+	font-family: Arial, Verdana, Courier, Georgia;
+
+	themeColor: #800080;
+	rollOverColor: #D8BFD8;
+	selectionColor: #DDA0DD;
+	contentBackgroundColor: #FAFAD2;
+	focusColor: #800080;
+	
+	modal-transparency: 0.5;
+	modal-transparency-blur: 2;
+	modal-transparency-color: #ffffff;
+	modal-transparency-duration: 100;
+}
+
+s|Application{
+	backgroundColor: #333333;	
+}
+
+s|TextInput{
+	contentBackgroundColor: #FAFAD2;	
+}
+
+s|DropDownList.navigation{
+	fontSize: 15;
+	fontStyle: italic;
+	fontWeight: bold;
+	cornerRadius: 4;
+	
+	/* no change from default for now */
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWDropDownListSkin_Navigation");
+}
+
+s|DropDownList.renderer{
+	/* drop down can be as long as the max text length, with minWidth=100 */
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWDropDownListSkin_Renderer");
+}
+
+s|Button.menu{
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.MenuButtonSkin");	
+	font-size: 12;	
+	font-weight:bold;	
+}
+
+
+/************************** Panel **************************
+************************************************************/
+s|Panel{
+	dropShadowVisible:false;
+}
+
+s|Panel.survey{
+	cornerRadius:5;
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWPanelSkin_Survey");
+}
+
+s|Panel.innerPanel{
+	backgroundColor:#eeeeee;
+	cornerRadius:5;
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWPanelSkin_Inner");	
+}
+
+s|Panel.headlessPanel{
+	backgroundColor:#eeeeee;
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWPanelSkin_Headless");	
+}
+
+s|Panel.headlessInnerPanel{
+	backgroundColor:#eeeeee;
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWPanelSkin_Headless_Inner");	
+}
+
+
+/************************** Popup (TitleWindow) *************
+************************************************************/
+s|TitleWindow{
+	cornerRadius:3;	
+	backgroundAlpha:1;
+	backgroundColor:#eeeeee;
+	borderVisible: true;
+	dropShadowVisible: false;
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWTitleWindowSkin");	
+}
+
+s|TitleWindow.headless{
+	skinClass:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWTitleWindowSkin_Headless");	
+}
+
+
+/************************** TabNavigator *******************
+************************************************************/
+mx|TabNavigator{	
+	paddingLeft: 0;
+	paddingRight: 0;
+	paddingBottom: 0;
+	horizontalGap: 0;
+	borderColor: #333333;
+	borderVisible: true;	
+	backgroundColor: #eeeeee;
+	
+	tabStyleName: tabStyleName;
+	selectedTabTextStyleName: selectedTabTextStyleName;
+}
+
+.tabStyleName{
+	fontWeight:bold;
+	color: white;
+	textRollOverColor : white;
+	skin: ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWTabSkin");
+}
+
+.selectedTabTextStyleName{	
+	color:#FF8C00;
+	textRollOverColor : #FF8C00; 
+} 
+
+mx|TabNavigator.innerTabNavigator{
+	borderColor: gray;
+	tabStyleName: innerTabStyleName;
+}
+
+.innerTabStyleName{
+	fontWeight:bold;
+	color: white;
+	textRollOverColor : white;
+	skin: ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWTabSkin_Inner");
+}
+
+
+/************************** Form ***************************
+************************************************************/
+s|Form
+{
+	backgroundColor: #eeeeee;
+	skinClass : ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWFormSkin");
+}
+
+s|FormHeading
+{
+	color: white;
+	backgroundColor: gray;
+	backgroundAlpha: 1;
+	fontSize : 15;
+	fontWeight : "bold";
+	skinClass : ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWFormHeadingSkin");
+}
+
+s|FormItem
+{
+	skinClass : ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWFormItemSkin");
+}
+
+
+/************************** Alert **************************
+************************************************************/
+mx|Alert{
+	borderSkin: ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWAlertSkin");
+	cornerRadius: 3;			
+	backgroundColor: #eeeeee;
+	titleStyleName: alertTitleStyleName;
+	messageStyleName: alertMessageStyleName;	
+	buttonStyleName: alertButtonStyleName; 
+}
+
+.alertTitleStyleName{
+	color: black;
+	fontWeight: bold;
+	fontSize: 15;
+}
+
+.alertMessageStyleName{
+	color: black;
+	fontSize: 12;
+}
+
+.alertButtonStyleName{
+	cornerRadius: 3;
+	/*accentColor: red;*/
+	/*focusColor: red;*/
+	/*fillColors: #F4A460, #F4A460;*/
+	skin:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWButtonSkin_MX");
+	emphasizedSkin:ClassReference("edu.northwestern.ciknow.common.skins.CIKNOWDefaultButtonSkin_MX");
+}
+
+
+/************************** Paginator ***********************
+************************************************************/
+s|Button.nudgeButton
+{
+	skinClass:ClassReference("edu.northwestern.ciknow.common.components.skins.NudgeButtonSkin");
+	font-size: 12;
+	color: #ffffff;
+}
+
+s|ButtonBarButton.pageButton
+{
+	skinClass:ClassReference("edu.northwestern.ciknow.common.components.skins.PageButtonSkin");
+	font-size: 12;
+	color: #ffffff;
+}
+
+common|Paginator s|HScrollBar
+{
+	skinClass:ClassReference("edu.northwestern.ciknow.common.components.skins.MyHScrollBarSkin");
+}
+
+
+/************************** MISC ****************************
+************************************************************/
+mx|HBox.warn{
+	backgroundColor: #FFF5EE;
+	borderVisible: false;
+	cornerRadius: 3;
+	fontStyle: italic;
+	fontWeight: bold;
+	color: red;
+}
+
+mx|HBox.info{
+	backgroundColor: #E6E6FA;
+	borderVisible: false;
+	cornerRadius: 3;
+	fontStyle: italic;
+	fontWeight: bold;
+	color: blue;
+}

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network:NetworkBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx"
+		  width="100%" height="100%" 
+		  xmlns:network="edu.northwestern.ciknow.visa.presentation.network.*" 
+		  xmlns:components="org.flashcommander.components.*">
+	<fx:Declarations>
+
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+
+			[Bindable] private var depths:ArrayCollection = new ArrayCollection([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+			
+			public var invalidLabelPrefix:String = "Cannot identify node with label=";
+			
+			[Init]
+			public override function init():void{
+				logger = LogUtil.getLog(NetworkLocal);
+				if (nu.isAdmin(sm.loginNode)) defineLargeNetworkBtn.visible = true;
+				super.init();
+			}
+			
+			// this is to ensure the edgeTypes are consistent with nodeTypes
+			private function onNodeTypeChange():void{
+				availableEdgeTypes = null;
+			}
+			
+			// validate user input
+			public override function validate():Boolean{
+				var node:Object = nu.getNodeByLabel(labelTi.text);
+				if (node == null){
+					Alert.show(invalidLabelPrefix + labelTi.text);
+					return false;
+				}
+				
+				if (nodeTypeBox.selectedItems == null || nodeTypeBox.selectedItems.length == 0){
+					Alert.show(selectNodeTypesMessage);
+					return false;
+				}
+				
+				if (edgeTypeBox.selectedItems == null || edgeTypeBox.selectedItems.length == 0){
+					Alert.show(selectEdgeTypesMessage);
+					return false;
+				}
+				
+				return true;
+			}
+			
+			// get selected node types, which is required for subsequent VisualizationSettings.mxml
+			public override function getNodeTypes():ArrayCollection{
+				if (nodeTypeBox.selectedItems == null || nodeTypeBox.selectedItems.length == 0){
+					return null;
+				}
+				return nu.getNodeTypes(nodeTypeBox.selectedItems);
+			}
+			
+			public override function get analyticSettings():Object{
+				var d:Object = new Object();
+				d.type = Constants.NETWORK_LOCAL;
+				var node:Object = nu.getNodeByLabel(labelTi.text);				
+				var sourceIds:ArrayCollection = new ArrayCollection();
+				sourceIds.addItem(String(node.nodeId));			
+				d.sourceIds = sourceIds;
+				d.depth = String(graphDepth.selectedItem);						
+				d.nodeTypes = nu.getNodeTypes(nodeTypeBox.selectedItems);
+				d.edgeTypes = eu.getEdgeTypes(edgeTypeBox.selectedItems);			
+				d.allowHugeNetwork = allowHugeNetworkBox.selected?"1":"0";
+				d.includeDerivedEdges = "1";
+				return d;
+			}
+			
+			public override function get exportSettings():URLVariables{
+				var params:URLVariables = new URLVariables();
+				params.networkType = Constants.NETWORK_LOCAL;
+				var node:Object = nu.getNodeByLabel(labelTi.text);	
+				params.node_id = String(node.nodeId);
+				params.depth = String(graphDepth.selectedItem);	
+				params.nodeType = nu.getNodeTypes(nodeTypeBox.selectedItems).source;
+				params.edgeType = eu.getEdgeTypes(edgeTypeBox.selectedItems).source; // important! use the Array!
+				params.allowHugeNetwork = allowHugeNetworkBox.selected?"1":"0";
+				params.includeDerivedEdges = "1";
+				return params;
+			}
+			
+			public override function get url():String{
+				var node:Object = nu.getNodeByLabel(labelTi.text);
+
+				var s:String = "";
+				s += ("&node_id=" + node.nodeId);
+				s += ("&depth=" + graphDepth.selectedItem);
+				
+				var item:Object;
+				for each (item in nodeTypeBox.selectedItems){		
+					s += ("&nodeType=" + item.type);					
+				}				
+				for each (item in edgeTypeBox.selectedItems){		
+					s += ("&edgeType=" + item.type);					
+				}
+				
+				s += ("&allowHugeNetwork=" + (allowHugeNetworkBox.selected?"1":"0"));
+				s += ("&includeDerivedEdges=1");
+
+				return s;
+			}
+						
+			public override function set url(query:String):void{
+				var eds:Vector.<Object> = new Vector.<Object>();
+				var nds:Vector.<Object> = new Vector.<Object>();
+				var parts:Array = query.split("&");
+				for each (var part:String in parts){
+					var subparts:Array = part.split("=");
+					var key:String = subparts[0];
+					var value:String = unescape(subparts[1]);	
+
+					logger.debug("key=" + key + ", value=" + value);
+					if (key == "node_id") {
+						var node:Object = nu.getNodeById(Number(value));
+						if (node != null){
+							labelTi.text = node.label;
+						} else {
+							Alert.show("Invalid: " + part);
+						}
+					} else if (key == "depth"){
+						graphDepth.selectedItem = Number(value);
+					} else if (key == "nodeType"){
+						var nd:Object = nu.getNodeTypeDescription(value);
+						if (nd == null) Alert.show("Invalid: " + part);
+						else nds.push(nd);
+					} else if (key == "edgeType"){
+						var ed:Object = eu.getEdgeDescription(sm.edgeTypeDescriptions, value);
+						if (ed == null) Alert.show("Invalid: " + part);
+						else eds.push(ed);
+					} else if (key == "allowHugeNetwork"){
+						allowHugeNetworkBox.selected = (value == "1"?true:false);
+					}  
+				}
+				nodeTypeBox.selectedItems = nds;
+				if (availableEdgeTypes == null || availableEdgeTypes.length == 0){
+					availableEdgeTypes = sm.edgeTypeDescriptions;
+				}
+				edgeTypeBox.selectedItems = eds;
+			}
+		]]>
+	</fx:Script>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="labelItem" label="Name" width="100%">
+			<components:AutoComplete id="labelTi" 
+									 prefixOnly="false" 
+									 requireSelection="true" 
+									 dataProvider="{sm.allNodeLabels}" 
+									 width="500"/>
+		</s:FormItem>
+		<s:FormItem id="depthItem" label="Depth">
+			<s:DropDownList id="graphDepth" 
+							dataProvider="{depths}" 
+							selectedIndex="0"/>	
+		</s:FormItem>					
+		<s:FormItem id="selectItem" label="Select Node/Edges" width="100%">
+			<s:HGroup width="100%" height="100%">
+				<s:VGroup width="100%" height="100%">
+					<s:DataGrid id="nodeTypeBox" 
+								dataProvider="{sm.nodeTypeDescriptions}" 
+								selectionMode="multipleRows" 
+								selectionChange="onNodeTypeChange()"
+								width="100%" height="100%" requestedMinRowCount="6">
+						<s:columns>
+							<s:ArrayList>
+								<s:GridColumn id="nodeTypesColumn" headerText="Node Types" dataField="label"/>
+							</s:ArrayList>
+						</s:columns>
+					</s:DataGrid>
+					<s:Button id="getEdgeTypesBtn" label="Retrieve Available Edge Types" click="getEdgeTypesAmongNodeTypes()"/>				
+				</s:VGroup>
+				
+				<s:DataGrid id="edgeTypeBox" 
+							dataProvider="{availableEdgeTypes}" 
+							selectionMode="multipleRows" 
+							width="100%" height="100%">
+					<s:columns>
+						<s:ArrayList>
+							<s:GridColumn id="edgeTypesColumn" headerText="Edge Types" dataField="label"/>
+						</s:ArrayList>
+					</s:columns>
+				</s:DataGrid>	
+			</s:HGroup>
+		</s:FormItem>
+		<s:FormItem id="allowLargeNetworkItem" label="Allow Large Network">
+			<s:HGroup verticalAlign="baseline">
+				<s:CheckBox id="allowHugeNetworkBox"/>	
+				<s:Button id="defineLargeNetworkBtn" label="Define Large Network" visible="false" click="defineLimits()"/>	
+			</s:HGroup>
+		</s:FormItem>						
+	</s:Form>
+</network:NetworkBase>

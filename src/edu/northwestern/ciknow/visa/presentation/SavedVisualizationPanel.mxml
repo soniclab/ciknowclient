@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" styleName="headlessPanel" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.domain.VisualizationDTO;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.IOUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationGridItemRenderer;
+			import edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationPM;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.IList;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.utils.ObjectUtil;
+			import mx.utils.StringUtil;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static const logger:ILogger = LogUtil.getLog(SavedVisualizationPanel);
+			private static const VIEW:String = "view";	
+			private static const EDIT:String = "edit";	
+			
+			[Bindable] private var downloadable:Boolean = false;
+			[Bindable] private var viewTypes:ArrayCollection = 
+				new ArrayCollection(
+					[{type:"realtime", label:"Real Time"},
+					{type:"snapshot", label:"Snap Shot"}]);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+			
+			[Inject][Bindable]
+			public var svPM:SavedVisualizationPM;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var iu:IOUtil;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			public var selectVisualizationMessage:String = "Please select a visualization first.";
+			public var selectLayoutVisualizationMessage:String = "Please select a saved visualization (type='layout')";
+			public var deleteVisualizationMessage:String = "Are you sure to delete selected saved visualization?";
+			public var customizeSharedQueryPrefix:String = "You are creating your own visualization based on the query shared by:";
+			
+			[Bindable] public var promptMessage:String = "Please Select Visualizations";
+			[Bindable] public var myVis:String = "Visualizations You Have Saved";
+			[Bindable] public var otherVis:String = "Visualizations Others Have Shared With You";
+			
+			
+			
+			[Init]
+			public function init():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_CREATED_VIS);
+				e.data.creatorId = sm.loginNode.nodeId.toString();
+				dispatcher(e);
+				
+				var e2:GeneralEvent = new GeneralEvent(GeneralEvent.GET_VISIBLE_VIS);
+				e2.data.nodeId = sm.loginNode.nodeId.toString();
+				dispatcher(e2);
+				
+				if (gu.verify(sm.currentSurvey.attributes, Constants.SURVEY_ALLOW_SNAPSHOT)){
+					gu.show(viewTypeBox);
+				} else {
+					gu.hide(viewTypeBox);
+				}
+			}						
+			
+
+			/////////////////////// VIEW ///////////////////////////////
+			private function tryView():void{
+				var vis:VisualizationDTO = getSelectedVis();
+				if (vis == null) {
+					Alert.show(selectVisualizationMessage);
+					return;
+				}
+				
+				if (vis.type == "query"){
+					var e:GeneralEvent = new GeneralEvent(GeneralEvent.VALIDATE_VIS);
+					e.data.visId = String(vis.visId);
+					dispatcher(e);
+				} else view(vis);			
+			}
+			
+			[MessageHandler(selector="validatedVis")]
+			public function validationHandler(e:GeneralEvent):void{
+				var result:Object = e.data;
+				var visId:Number = Number(result.visId);
+				var valid:Boolean = result.valid == "1" ? true:false;
+				var msg:String = result.msg;
+				
+				// force to redraw
+				var vis:VisualizationDTO = getVisById(svPM.createdViss, visId);				
+				if (vis != null){
+					vis.valid = valid;
+					createdDg.invalidateDisplayList();
+					createdDg.selectedItem = vis;						
+				} else{
+					vis = getVisById(svPM.visibleViss, visId);
+					vis.valid = valid;
+					visibleDg.invalidateDisplayList();
+					visibleDg.selectedItem = vis;	
+				}
+				
+				if (!valid) {
+					Alert.show(msg);						
+				} else {					
+					view(vis);
+				}				
+			}
+			
+			private function view(vis:VisualizationDTO):void{	
+				logger.debug("view visualization...");						
+				var url:String = sm.baseURL + "/vis?";
+				if (vis.type == "query"){
+					url += vis.data;
+				} else if (vis.type == "layout"){
+					url += "visId=" + vis.visId;
+				} else {
+					Alert.show("Unrecognized saved visualization type.");
+					return;
+				}
+				
+				if (viewTypeBox.selectedIndex == 1){
+					var snapShotName:String = StringUtil.trim(snapShotNameTi.text);					
+					if (snapShotName == ''){
+						Alert.show("snapShotName cannot be empty.");
+						return;
+					}
+					
+					if (snapShotName.length > 50) {
+						Alert.show("snapShotName is too long (>50): " + snapShotName);
+						return;
+					}
+					
+					if (gu.hasInvalidChar(snapShotName)
+						|| snapShotName.indexOf(",") >= 0
+						|| snapShotName.indexOf("`") >= 0
+						|| snapShotName.indexOf(" ") >= 0){
+						Alert.show("snapShotName cannot contain special characters: < > / \\ \" ? : | * , ` or space: " + snapShotName);
+						return; 
+					}
+					
+					url += "&viewType=snapshot";
+					url += ("&snapShotName=" + snapShotName);
+				} else url += "&viewType=realtime";
+				
+				var request:URLRequest = new URLRequest(url);
+				navigateToURL(request);				
+			}	
+			
+			/////////////////////// UPDATE ///////////////////////////////
+			private function update():void{		
+				var vis:VisualizationDTO = this.getSelectedVis();
+				if (vis == null){
+					Alert.show(selectVisualizationMessage);
+					return;
+				}
+				
+				var p:SavedVisualizationPopup = new SavedVisualizationPopup();
+				if (stacks.selectedChild == createdBox) {
+					p.vis = vis;
+				} else if (stacks.selectedChild == visibleBox) {
+					p.vis = ObjectUtil.copy(vis) as VisualizationDTO;
+					p.vis.visId = 0;
+					p.vis.version = 0;
+					p.vis.creatorId = sm.loginNode.nodeId;
+				}
+				p.width = sm.indexPage.width;
+				p.height = sm.indexPage.height;
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);	
+				
+				// These has to be added AFTER popup is added to displaylist
+				if (stacks.selectedChild == createdBox) {
+					p.nameTi.enabled = false;
+				} else if (stacks.selectedChild == visibleBox){
+					var node:Object = nu.getNodeById(vis.creatorId);
+					p.msg.text = customizeSharedQueryPrefix + " " + node.label;
+					p.msg.visible = true;
+					p.msg.includeInLayout = true;
+				}													
+			}
+			
+			[MessageHandler(selector="createdVis")]
+			public function visCreatedHandler(e:GeneralEvent):void{				
+				var vis:VisualizationDTO = e.data as VisualizationDTO;
+				createdDg.selectedItem = vis;
+				logger.debug("New visualization created.");
+			}
+			
+			[MessageHandler(selector="updatedVis")]
+			public function visUpdatedHandler(e:GeneralEvent):void{				
+				var vis:VisualizationDTO = e.data as VisualizationDTO;
+				logger.debug("Saved visualization updated.");
+			}
+			
+			/////////////////////// REMOVE ///////////////////////////////
+			private function tryRemove():void{
+				var vis:VisualizationDTO = createdDg.selectedItem as VisualizationDTO;
+				if (vis == null){
+					Alert.show(selectVisualizationMessage);
+					return;					
+				}
+				
+				Alert.show(deleteVisualizationMessage, "", Alert.YES|Alert.NO, this, remove);
+			}
+			
+			private function remove(event:CloseEvent):void{
+				if (event.detail == Alert.NO) return;
+				
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.DELETE_VIS);
+				e.data.vis = createdDg.selectedItem as VisualizationDTO;
+				dispatcher(e);						
+			}
+			
+
+			/////////////////////// MISC OPERATIONS ///////////////////////////////
+			private function onSelectionChange():void{
+				if (stacks.selectedChild == createdBox){
+					deleteBtn.visible = true;
+					deleteBtn.includeInLayout = true;				
+				} else {
+					deleteBtn.visible = false;
+					deleteBtn.includeInLayout = false;											
+				}
+			}
+			
+			private function selectVis():void{
+				var vis:VisualizationDTO = getSelectedVis();
+				if (vis == null) return;
+				downloadable = (vis.type == "layout"?true:false);
+			}	
+			
+			private function download():void{				
+				var vis:VisualizationDTO = getSelectedVis();
+				if (vis == null || vis.type != "layout"){
+					Alert.show(selectLayoutVisualizationMessage);
+					return;
+				}
+				var params:URLVariables = new URLVariables();
+				params.visId = vis.visId.toString();
+				params.action = "downloadVis";
+				iu.download(params, vis.name + ".html");
+			}	
+			
+			private function getSelectedVis():VisualizationDTO{
+				var dg:DataGrid = null;
+				if (stacks.selectedChild == createdBox) dg = createdDg;
+				else if (stacks.selectedChild == visibleBox) dg = visibleDg;
+				var vis:VisualizationDTO = dg.selectedItem as VisualizationDTO;	
+				return vis;			
+			}
+			
+			private function getVisById(viss:IList, visId:Number):VisualizationDTO{
+				for each (var vis:VisualizationDTO in viss){
+					if (vis.visId == visId) return vis;
+				}
+				return null;
+			}
+
+			private function changeViewType():void{
+				if (viewTypeBox.selectedIndex == 0){
+					gu.hide(snapShotNameTi);
+				} else gu.show(snapShotNameTi);
+			}
+			
+			private function getNodeLabel(item:Object, column:GridColumn):String{
+				return nu.getNodeById(Number(item.creatorId)).label;
+			}	
+		]]>
+	</fx:Script>
+	
+	<s:DropDownList id="list" prompt="{promptMessage}"
+					change="stacks.selectedIndex = list.selectedIndex" 
+					width="400" styleName="navigation">
+		<s:layout>
+			<s:VerticalLayout gap="0" requestedRowCount="{list.dataProvider.length}" horizontalAlign="contentJustify"/>
+		</s:layout>
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:String>{myVis}</fx:String>
+				<fx:String>{otherVis}</fx:String>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	
+	<s:Spacer height="10"/>
+	
+	<mx:ViewStack id="stacks" width="100%" height="100%" 
+				  change="onSelectionChange()" 
+				  creationPolicy="all"
+				  visible="{list.selectedIndex != -1}" 
+				  includeInLayout="{list.selectedIndex != -1}">
+		<s:NavigatorContent id="createdBox" label="Visualizations You Have Saved:" width="100%" height="100%">
+			<s:DataGrid id="createdDg" width="100%" height="100%" selectionChange="selectVis()"
+						dataProvider="{svPM.createdViss}" 
+						doubleClickEnabled="true" 
+						doubleClick="tryView()"
+						itemRenderer="edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationGridItemRenderer">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn id="myIdColumn" headerText="ID" dataField="visId" width="30"/>
+						<s:GridColumn id="myNameColumn" headerText="Name" dataField="name"/>
+						<s:GridColumn id="myDescriptionColumn" headerText="Description" dataField="label"/>
+						<s:GridColumn id="myTypeColumn" headerText="Type" dataField="type" width="50"/>
+						<s:GridColumn id="myNetworkTypeColumn" headerText="NetworkType" dataField="networkType" width="100"/>
+						<s:GridColumn id="myTimestampColumn" headerText="Timestamp" dataField="timestamp" width="150"
+									  itemRenderer="edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationGridItemRenderer_TimeStamp"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:NavigatorContent>
+		
+		<s:NavigatorContent id="visibleBox" label="Visualizations Others Have Shared With You:" width="100%" height="100%">
+			<s:DataGrid id="visibleDg" width="100%" height="100%" selectionChange="selectVis()" 
+						dataProvider="{svPM.visibleViss}" 
+						itemRenderer="edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationGridItemRenderer" 
+						doubleClickEnabled="true" 
+						doubleClick="tryView()">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn id="otherIdColumn" headerText="ID" dataField="visId" width="30"/>
+						<s:GridColumn id="otherCreatorColumn" headerText="Creator" labelFunction="getNodeLabel" width="100"/>
+						<s:GridColumn id="otherNameColumn" headerText="Name" dataField="name"/>
+						<s:GridColumn id="otherDescriptionColumn" headerText="Description" dataField="label"/>
+						<s:GridColumn id="otherTypeColumn" headerText="Type" dataField="type" width="50"/>
+						<s:GridColumn id="otherNetworkTypeColumn" headerText="NetworkType" dataField="networkType" width="100"/>
+						<s:GridColumn id="otherTimestampColumn" headerText="Timestamp" dataField="timestamp" width="150"
+									  itemRenderer="edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationGridItemRenderer_TimeStamp"/>
+					</s:ArrayList>
+				</s:columns>					
+			</s:DataGrid>	
+		</s:NavigatorContent>		
+	</mx:ViewStack>
+	
+	<s:controlBarContent>
+		<s:HGroup id="hg" verticalAlign="baseline" 
+				  visible="{list.selectedIndex != -1}" 
+				  includeInLayout="{list.selectedIndex != -1}">
+			<s:DropDownList id="viewTypeBox" width="200"
+							dataProvider="{viewTypes}" 
+							labelField="label" 
+							selectedIndex="0" 
+							change="changeViewType()" 
+							visible="false" includeInLayout="false"/>
+			<s:TextInput id="snapShotNameTi" 
+						 visible="false" includeInLayout="false"/>
+			<s:Button id="viewBtn" label="View" click="tryView()"/>
+			
+			<s:Spacer width="10"/>
+			
+			<s:Button id="editBtn" label="Edit/Share" click="update()"/>
+			<s:Button id="deleteBtn" label="Delete" click="tryRemove()"/>
+			<s:Button id="downloadBtn" label="Download" click="download()" 
+					  visible="{downloadable}" includeInLayout="{downloadable}"/>
+		</s:HGroup>
+	</s:controlBarContent>
+</s:Panel>

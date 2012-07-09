@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   close="close()" creationComplete="init()"
+			   xmlns:network="edu.northwestern.ciknow.visa.presentation.network.*" 
+			   xmlns:parsley="http://www.spicefactory.org/parsley" title="Edit Query">
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.events.CustomUIEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.visa.presentation.network.NetworkBase;
+			import edu.northwestern.ciknow.visa.presentation.network.NetworkCustom;
+			import edu.northwestern.ciknow.visa.presentation.network.NetworkLocal;
+			import edu.northwestern.ciknow.visa.presentation.network.VisualizationSettings;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			
+			private static const logger:ILogger = LogUtil.getLog(SavedVisualizationQueryEditPopup);
+			
+			private var network:NetworkBase = null;
+			private var visualSettings:VisualizationSettings = null;
+			
+			public var data:Object = null;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var nu:NodeUtil;
+			
+			public function init():void{
+				logger.debug("initializing");
+				if (data == null || !data.hasOwnProperty("query")){
+					Alert.show("data is not initialized.");
+				}
+				
+				var query:String = String(data.query);
+				if (query.indexOf("networkType=" + Constants.NETWORK_LOCAL) >= 0){
+					network = new NetworkLocal();					
+				} else {
+					network = new NetworkCustom();
+				}
+				vgroup.addElement(network);
+				
+				
+				visualSettings = new VisualizationSettings();
+				visualSettings.nodeTypes = getNodeTypes(query);
+				visualSettings.addEventListener(CustomUIEvent.POPULATED, parseQuery);
+				vgroup.addElement(visualSettings);
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function getNodeTypes(query:String):ArrayCollection{
+				var nodeTypes:ArrayCollection = new ArrayCollection();
+				var parts:Array = query.split("&");
+				for each (var part:String in parts){
+					var subparts:Array = part.split("=");
+					var key:String = subparts[0];
+					var value:String = unescape(subparts[1]);	
+					if (key == "nodeType") nodeTypes.addItem(value);
+				}
+				return nodeTypes;
+			}
+			
+			private function parseQuery(event:CustomUIEvent):void{
+				logger.debug("parsing query...");
+				var query:String = String(data.query);
+				network.url = query; 
+				visualSettings.url = query;
+			}
+			
+			private function save():void{
+				if (!network.validate()) return;
+				if (!visualSettings.validate()) return;
+				
+				var url:String = gu.getURL(
+					(network is NetworkLocal?Constants.NETWORK_LOCAL:Constants.NETWORK_CUSTOM), 
+					network.url, 
+					visualSettings.url);
+				var index:int = url.indexOf("?");
+				url = url.substring(index + 1);
+				data.query = url;
+				
+				close();
+			}
+			
+			private function close():void{			
+				PopUpManager.removePopUp(this);
+			}	
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	
+	<s:Scroller left="0" right="0" top="0" bottom="0">
+		<s:VGroup id="vgroup" width="{this.width-15}" height="{this.height-65}">
+			
+		</s:VGroup>
+	</s:Scroller>
+<!--	<network:NetworkLocal id="localNetwork" visible="{isLocal}" includeInLayout="{isLocal}"/>
+	<network:NetworkLocal id="customNetwork" visible="{!isLocal}" includeInLayout="{!isLocal}"/>
+							  
+	<network:VisualizationSettings id="visualSettings" populated="parseQuery()"/>	-->
+	
+	<s:controlBarContent>
+		<s:Button id="saveBtn" label="Keep Changes" click="save()"/>
+		<s:Button id="closeBtn" label="Discard Changes" click="close()"/>
+	</s:controlBarContent>
+</s:TitleWindow>

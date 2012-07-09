@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%"
+					   title="Derive Attributes by Survey Progress">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.utils.StringUtil;		
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveAttributeBySurveyProgress);
+				super.init();
+				this.derivationType = Constants.DERIVE_ATTRIBUTE_BY_PROGRESS;
+			}
+			
+			public override function derive():void{
+				var e:NodeEvent = new NodeEvent(NodeEvent.DERIVE_BY_PROGRESS);
+				e.data = new Object();
+				e.data.job = job;
+				dispatcher(e);			
+			}
+
+		]]>
+	</fx:Script>
+
+	<s:Label text="{instruction}"/>
+
+</derivation:DeriveBase>

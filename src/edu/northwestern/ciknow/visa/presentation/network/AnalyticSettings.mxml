@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:VGroup xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			[Bindable] private var directions:ArrayCollection = new ArrayCollection(["Original", "Directed", "Undirected"]);
+			[Bindable] private var undirectedOperators:ArrayCollection = new ArrayCollection(["AND", "OR"]);
+			
+			private function onGraphDirectionChange():void{
+				if (graphDirection.selectedIndex == 2){
+					undirectedOperatorItem.visible = true;
+					undirectedOperatorItem.includeInLayout = true;
+				} else {
+					undirectedOperatorItem.visible = false;
+					undirectedOperatorItem.includeInLayout = false;					
+				}				
+			}	
+		]]>
+	</fx:Script>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="calculateAsItem" label="Calculate As">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="graphDirection" 
+								dataProvider="{directions}" 
+								selectedIndex="0"
+								change="onGraphDirectionChange()"/>	
+				<s:Label id="calculateAsNote" text="If 'Original' is selected, the first edge's type is used in calculation." 
+						 color="red" fontStyle="italic" fontSize="10"/>				
+			</s:HGroup>
+		</s:FormItem>
+		<s:FormItem id="undirectedOperatorItem" 
+					label="Undirected Operator" 
+					visible="false" includeInLayout="false" 
+					toolTip="Operator for converting directed into undirected network.">
+			<s:DropDownList id="undirectedOperatorBox" 
+							dataProvider="{undirectedOperators}" 
+							selectedIndex="1"/>
+		</s:FormItem>	
+	</s:Form>	
+
+</s:VGroup>

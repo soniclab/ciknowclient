@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<l10n:LocaleMap 	enableLog="false"
+					xmlns:factory="mx.core.*" 
+					xmlns:mx="http://www.adobe.com/2006/mxml" 
+					xmlns:l10n="http://l10n.babelfx.org/" >
+	
+	<mx:Metadata>
+		[ResourceBundle("visa")]
+	</mx:Metadata>
+	
+	<mx:Script>
+		<![CDATA[
+			import org.babelfx.commands.ExternalLocaleCommand;			
+			
+			/* 
+			 * Using compiler arguments -locale=en_US,es_ES,fr_FR,zh_CN -allow-source-path-overlap=true -source-path+=l10n/locale/{locale}
+		     * with the metaTag above forces the compiler to EMBED all locales as compiled resource bundles
+			 * Or use -locale="en_US" without [ResourceBundles] to force runtime loading of external bundles for es_ES, zh_CN, fr_FR
+			 * Note: you must should ANT build scripts to build and deploy the external bundles; see /build/buildResourceBundles.xml
+			 */
+			import edu.northwestern.ciknow.visa.presentation.*;
+			import edu.northwestern.ciknow.visa.presentation.network.*;
+			import edu.northwestern.ciknow.visa.presentation.savedvis.*;
+			import edu.northwestern.ciknow.visa.presentation.charts.*;
+		]]>
+	</mx:Script>
+	
+	<!-- 
+		The command factory instance below allows the l10nInjection engine to load external resource bundles from
+	     a custom deploy directory 'assets/locales/' name encoded by locale code
+	     e.g.  en_US.swf, zh_CN.swf, etc.
+	-->
+	<l10n:commandFactory>
+		 <factory:ClassFactory generator="{ExternalLocaleCommand}">
+			 <factory:properties>
+				 <mx:Object externalPath="assets/locales/\{0\}.swf"/>
+			 </factory:properties>
+		 </factory:ClassFactory>
+	</l10n:commandFactory>	
+
+	<l10n:ResourceInjector bundleName="visa" target="{VisualAnalytics}">
+		<l10n:ResourceSetter property="networkTab.label" key="visa.networks"/>
+		<l10n:ResourceSetter property="savedVisTab.label" key="visa.savedVis"/>
+		<l10n:ResourceSetter property="chartTab.label" key="visa.charts"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{NetworkPanel}">
+		<l10n:ResourceSetter property="waitMessage" key="visa.networks.panel.waitMessage"/>
+		<l10n:ResourceSetter property="navSelectNetworkLabel" key="visa.networks.panel.navSelectNetworkLabel"/>
+		<l10n:ResourceSetter property="navVisualizationSettingsLabel" key="visa.networks.panel.navVisualizationSettingsLabel"/>
+		<l10n:ResourceSetter property="navAnalyticsSettingsLabel" key="visa.networks.panel.navAnalyticsSettingsLabel"/>
+		<l10n:ResourceSetter property="navAnalyticsLabel" key="visa.networks.panel.navAnalyticsLabel"/>
+		<l10n:ResourceSetter property="navExportDLSettingsLabel" key="visa.networks.panel.navExportDLSettingsLabel"/>
+		<l10n:ResourceSetter property="localNetworkBtnLabel" key="visa.networks.panel.localNetworkBtnLabel"/>
+		<l10n:ResourceSetter property="customNetworkBtnLabel" key="visa.networks.panel.customNetworkBtnLabel"/>
+		<l10n:ResourceSetter property="visualizationBtnLabel" key="visa.networks.panel.visualizationBtnLabel"/>
+		<l10n:ResourceSetter property="analyticsBtnLabel" key="visa.networks.panel.analyticsBtnLabel"/>
+		<l10n:ResourceSetter property="exportGraphmlBtnLabel" key="visa.networks.panel.exportGraphmlBtnLabel"/>
+		<l10n:ResourceSetter property="exportDLBtnLabel" key="visa.networks.panel.exportDLBtnLabel"/>
+		<l10n:ResourceSetter property="backBtnLabel" key="visa.networks.panel.backBtnLabel"/>
+		<l10n:ResourceSetter property="submitBtnLabel" key="visa.networks.panel.submitBtnLabel"/>
+		<l10n:ResourceSetter property="saveQueryBtnLabel" key="visa.networks.panel.saveQueryBtnLabel"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{NetworkBase}">
+		<l10n:ResourceSetter property="selectNodeTypesMessage" key="visa.networks.networkbase.selectNodeTypesMessage"/>
+		<l10n:ResourceSetter property="selectEdgeTypesMessage" key="visa.networks.networkbase.selectEdgeTypesMessage"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{NetworkLocal}">
+		<l10n:ResourceSetter property="invalidLabelPrefix" key="visa.networks.local.invalidLabelPrefix"/>
+		<l10n:ResourceSetter property="labelItem.label" key="visa.networks.local.label"/>
+		<l10n:ResourceSetter property="depthItem.label" key="visa.networks.local.depth"/>
+		<l10n:ResourceSetter property="selectItem.label" key="visa.networks.local.select"/>
+		<l10n:ResourceSetter property="nodeTypesColumn.headerText" key="visa.networks.local.nodeTypesColumnLabel"/>
+		<l10n:ResourceSetter property="edgeTypesColumn.headerText" key="visa.networks.local.edgeTypesColumnLabel"/>
+		<l10n:ResourceSetter property="getEdgeTypesBtn.label" key="visa.networks.local.getEdgeTypes"/>
+		<l10n:ResourceSetter property="allowLargeNetworkItem.label" key="visa.networks.local.allowLargeNetwork"/>
+		<l10n:ResourceSetter property="defineLargeNetworkBtn.label" key="visa.networks.local.defineLargeNetwork"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{NetworkCustom}">
+		<l10n:ResourceSetter property="selectItem.label" key="visa.networks.custom.select"/>
+		<l10n:ResourceSetter property="nodeTypesColumn.headerText" key="visa.networks.custom.nodeTypesColumnLabel"/>
+		<l10n:ResourceSetter property="edgeTypesColumn.headerText" key="visa.networks.custom.edgeTypesColumnLabel"/>
+		<l10n:ResourceSetter property="getEdgeTypesBtn.label" key="visa.networks.custom.getEdgeTypes"/>
+		
+		<l10n:ResourceSetter property="edgeOperatorItem.label" key="visa.networks.custom.edgeOperator"/>
+		<l10n:ResourceSetter property="filterByNodeItem.label" key="visa.networks.custom.filterByNode"/>
+		<l10n:ResourceSetter property="nodeConfigBtn.label" key="visa.networks.custom.nodeConfig"/>
+		<l10n:ResourceSetter property="filterByEdgeItem.label" key="visa.networks.custom.filterByEdge"/>
+		<l10n:ResourceSetter property="edgeConfigBtn.label" key="visa.networks.custom.edgeConfig"/>
+		
+		<l10n:ResourceSetter property="includeIsolateItem.label" key="visa.networks.custom.includeIsolate"/>
+		<l10n:ResourceSetter property="showRawRelationItem.label" key="visa.networks.custom.showRawRelation"/>
+		
+		<l10n:ResourceSetter property="allowLargeNetworkItem.label" key="visa.networks.custom.allowLargeNetwork"/>
+		<l10n:ResourceSetter property="defineLargeNetworkBtn.label" key="visa.networks.custom.defineLargeNetwork"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{NetworkLimitPopup}">
+		<l10n:ResourceSetter property="invalidMessage" key="visa.networks.limitPopup.invalidMessage"/>
+		
+		<l10n:ResourceSetter property="numNodeItem.label" key="visa.networks.limitPopup.numNode"/>
+		<l10n:ResourceSetter property="numEdgeItem.label" key="visa.networks.limitPopup.numEdge"/>
+		<l10n:ResourceSetter property="hardLimitItem.label" key="visa.networks.limitPopup.hardLimit"/>
+		
+		<l10n:ResourceSetter property="saveBtn.label" key="visa.networks.limitPopup.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="visa.networks.limitPopup.close"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{VisualizationSettings}">
+		<l10n:ResourceSetter property="selectDisplayAttributeMessage" key="visa.networks.visualSettings.selectDisplayAttributeMessage"/>
+		<l10n:ResourceSetter property="selectColorAttributeMessage" key="visa.networks.visualSettings.selectColorAttributeMessage"/>
+		<l10n:ResourceSetter property="selectGroupAttributeMessage" key="visa.networks.visualSettings.selectGroupAttributeMessage"/>
+		<l10n:ResourceSetter property="selectShapeAttributeMessage" key="visa.networks.visualSettings.selectShapeAttributeMessage"/>
+		<l10n:ResourceSetter property="radiusLabel" key="visa.networks.visualSettings.radiusLabel"/>
+		<l10n:ResourceSetter property="widthLabel" key="visa.networks.visualSettings.widthLabel"/>
+		<l10n:ResourceSetter property="heightLabel" key="visa.networks.visualSettings.heightLabel"/>
+		<l10n:ResourceSetter property="propertyLabel" key="visa.networks.visualSettings.propertyLabel"/>
+		<l10n:ResourceSetter property="attributeLabel" key="visa.networks.visualSettings.attributeLabel"/>
+		
+		<l10n:ResourceSetter property="displayItem.label" key="visa.networks.visualSettings.display"/>
+		<l10n:ResourceSetter property="hideItem.label" key="visa.networks.visualSettings.hide"/>
+		<l10n:ResourceSetter property="removeItem.label" key="visa.networks.visualSettings.remove"/>
+		<l10n:ResourceSetter property="displayMutualItem.label" key="visa.networks.visualSettings.displayMutual"/>
+		<l10n:ResourceSetter property="colorItem.label" key="visa.networks.visualSettings.color"/>
+		<l10n:ResourceSetter property="shapeItem.label" key="visa.networks.visualSettings.shape"/>
+		<l10n:ResourceSetter property="groupItem.label" key="visa.networks.visualSettings.group"/>
+		<l10n:ResourceSetter property="sizeItem.label" key="visa.networks.visualSettings.size"/>
+		<l10n:ResourceSetter property="sizeItem2.label" key="visa.networks.visualSettings.size2"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{AnalyticSettings}">
+		<l10n:ResourceSetter property="calculateAsItem.label" key="visa.networks.analyticSettings.calculateAs"/>
+		<l10n:ResourceSetter property="calculateAsNote.text" key="visa.networks.analyticSettings.calculateAsNote"/>
+		<l10n:ResourceSetter property="undirectedOperatorItem.label" key="visa.networks.analyticSettings.undirectedOperator"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{Analytics}">
+		<l10n:ResourceSetter property="note.text" key="visa.networks.analytics.note"/>
+		<l10n:ResourceSetter property="downloadBtn.label" key="visa.networks.analytics.download"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="visa" target="{AnalyticsDisplay}">
+		<l10n:ResourceSetter property="tooManyCliqueMessage" key="visa.networks.analyticDisplay.tooManyCliqueMessage"/>
+		<l10n:ResourceSetter property="tooManyComponentMessage" key="visa.networks.analyticDisplay.tooManyComponentMessage"/>
+		<l10n:ResourceSetter property="powerLawPlot4InDegree" key="visa.networks.analyticDisplay.powerLawPlot4InDegree"/>
+		<l10n:ResourceSetter property="powerLawPlot4OutDegree" key="visa.networks.analyticDisplay.powerLawPlot4OutDegree"/>
+		<l10n:ResourceSetter property="powerLawPlot4Degree" key="visa.networks.analyticDisplay.powerLawPlot4Degree"/>
+		
+		<l10n:ResourceSetter property="totalNodesItem.label" key="visa.networks.analyticDisplay.totalNodes"/>
+		<l10n:ResourceSetter property="totalEdgesItem.label" key="visa.networks.analyticDisplay.totalEdges"/>
+		<l10n:ResourceSetter property="densityItem.label" key="visa.networks.analyticDisplay.density"/>
+		<l10n:ResourceSetter property="degreeItem.label" key="visa.networks.analyticDisplay.degree"/>
+		<l10n:ResourceSetter property="inDegreeItem.label" key="visa.networks.analyticDisplay.inDegree"/>
+		<l10n:ResourceSetter property="outDegreeItem.label" key="visa.networks.analyticDisplay.outDegree"/>
+		<l10n:ResourceSetter property="closenessItem.label" key="visa.networks.analyticDisplay.closeness"/>
+		<l10n:ResourceSetter property="inClosenessItem.label" key="visa.networks.analyticDisplay.inCloseness"/>
+		<l10n:ResourceSetter property="outClosenessItem.label" key="visa.networks.analyticDisplay.outCloseness"/>
+		<l10n:ResourceSetter property="betweennessItem.label" key="visa.networks.analyticDisplay.betweenness"/>
+		<l10n:ResourceSetter property="averageClusteringCoeffItem.label" key="visa.networks.analyticDisplay.averageClusteringCoeff"/>
+		<l10n:ResourceSetter property="diameterItem.label" key="visa.networks.analyticDisplay.diameter"/>
+		<l10n:ResourceSetter property="characteristicPathLengthItem.label" key="visa.networks.analyticDisplay.characteristicPathLength"/>
+		<l10n:ResourceSetter property="degreePowerLawItem.label" key="visa.networks.analyticDisplay.degreePowerLaw"/>
+		<l10n:ResourceSetter property="inDegreePowerLawItem.label" key="visa.networks.analyticDisplay.inDegreePowerLaw"/>
+		<l10n:ResourceSetter property="outDegreePowerLawItem.label" key="visa.networks.analyticDisplay.outDegreePowerLaw"/>
+		<l10n:ResourceSetter property="cliqueItem.label" key="visa.networks.analyticDisplay.clique"/>
+		<l10n:ResourceSetter property="componentItem.label" key="visa.networks.analyticDisplay.component"/>
+
+		<l10n:ResourceSetter property="inDegreePowerBtn.label" key="visa.networks.analyticDisplay.show"/>
+		<l10n:ResourceSetter property="outDegreePowerBtn.label" key="visa.networks.analyticDisplay.show"/>
+		<l10n:ResourceSetter property="degreePowerBtn.label" key="visa.networks.analyticDisplay.show"/>
+		<l10n:ResourceSetter property="cliqueBtn.label" key="visa.networks.analyticDisplay.show"/>
+		<l10n:ResourceSetter property="componentBtn.label" key="visa.networks.analyticDisplay.show"/>
+		
+		<l10n:ResourceSetter property="nameColumn.headerText" key="visa.networks.analyticDisplay.name"/>
+		<l10n:ResourceSetter property="inDegreeColumn.headerText" key="visa.networks.analyticDisplay.inDegree"/>
+		<l10n:ResourceSetter property="outDegreeColumn.headerText" key="visa.networks.analyticDisplay.outDegree"/>
+		<l10n:ResourceSetter property="inClosenessColumn.headerText" key="visa.networks.analyticDisplay.inCloseness"/>
+		<l10n:ResourceSetter property="outClosenessColumn.headerText" key="visa.networks.analyticDisplay.outCloseness"/>
+		<l10n:ResourceSetter property="betweennessColumn.headerText" key="visa.networks.analyticDisplay.betweenness"/>
+		<l10n:ResourceSetter property="pageRankColumn.headerText" key="visa.networks.analyticDisplay.pageRank"/>
+		<l10n:ResourceSetter property="clusteringColumn.headerText" key="visa.networks.analyticDisplay.clustering"/>
+		
+		<l10n:ResourceSetter property="nameColumn2.headerText" key="visa.networks.analyticDisplay.name"/>
+		<l10n:ResourceSetter property="degreeColumn.headerText" key="visa.networks.analyticDisplay.degree"/>
+		<l10n:ResourceSetter property="closenessColumn.headerText" key="visa.networks.analyticDisplay.closeness"/>
+		<l10n:ResourceSetter property="betweennessColumn2.headerText" key="visa.networks.analyticDisplay.betweenness"/>
+		<l10n:ResourceSetter property="pageRankColumn2.headerText" key="visa.networks.analyticDisplay.pageRank"/>
+		<l10n:ResourceSetter property="clusteringColumn2.headerText" key="visa.networks.analyticDisplay.clustering"/>
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{ExportDLSettings}">
+		<l10n:ResourceSetter property="labelEmbeddedItem.label" key="visa.networks.exportDLSettings.labelEmbedded"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="visa" target="{SavedVisualizationPanel}">
+		<l10n:ResourceSetter property="promptMessage" key="visa.savedVis.promptMessage"/>
+		<l10n:ResourceSetter property="myVis" key="visa.savedVis.myVis"/>
+		<l10n:ResourceSetter property="otherVis" key="visa.savedVis.otherVis"/>
+		<l10n:ResourceSetter property="selectVisualizationMessage" key="visa.savedVis.selectVisualizationMessage"/>
+		<l10n:ResourceSetter property="selectLayoutVisualizationMessage" key="visa.savedVis.selectLayoutVisualizationMessage"/>
+		<l10n:ResourceSetter property="deleteVisualizationMessage" key="visa.savedVis.deleteVisualizationMessage"/>
+		<l10n:ResourceSetter property="customizeSharedQueryPrefix" key="visa.savedVis.customizeSharedQueryPrefix"/>
+		
+		<l10n:ResourceSetter property="myIdColumn.headerText" key="visa.savedVis.id"/>
+		<l10n:ResourceSetter property="myNameColumn.headerText" key="visa.savedVis.name"/>
+		<l10n:ResourceSetter property="myDescriptionColumn.headerText" key="visa.savedVis.description"/>
+		<l10n:ResourceSetter property="myTypeColumn.headerText" key="visa.savedVis.type"/>
+		<l10n:ResourceSetter property="myNetworkTypeColumn.headerText" key="visa.savedVis.networkType"/>
+		<l10n:ResourceSetter property="myTimestampColumn.headerText" key="visa.savedVis.timestamp"/>
+		
+		<l10n:ResourceSetter property="otherIdColumn.headerText" key="visa.savedVis.id"/>
+		<l10n:ResourceSetter property="otherCreatorColumn.headerText" key="visa.savedVis.creator"/>
+		<l10n:ResourceSetter property="otherNameColumn.headerText" key="visa.savedVis.name"/>
+		<l10n:ResourceSetter property="otherDescriptionColumn.headerText" key="visa.savedVis.description"/>
+		<l10n:ResourceSetter property="otherTypeColumn.headerText" key="visa.savedVis.type"/>
+		<l10n:ResourceSetter property="otherNetworkTypeColumn.headerText" key="visa.savedVis.networkType"/>
+		<l10n:ResourceSetter property="otherTimestampColumn.headerText" key="visa.savedVis.timestamp"/>
+		
+		<l10n:ResourceSetter property="viewBtn.label" key="visa.savedVis.view"/>
+		<l10n:ResourceSetter property="editBtn.label" key="visa.savedVis.edit"/>
+		<l10n:ResourceSetter property="deleteBtn.label" key="visa.savedVis.delete"/>
+		<l10n:ResourceSetter property="downloadBtn.label" key="visa.savedVis.download"/>
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="visa" target="{SavedVisualizationPopup}">
+		<l10n:ResourceSetter property="title" key="visa.savedVisPopup.title"/>
+		
+		<l10n:ResourceSetter property="invalidNodeLabelPrefix" key="visa.savedVisPopup.invalidNodeLabelPrefix"/>
+		<l10n:ResourceSetter property="selectNodeMessage" key="visa.savedVisPopup.selectNodeMessage"/>
+		<l10n:ResourceSetter property="selectLeftGroupMessage" key="visa.savedVisPopup.selectLeftGroupMessage"/>
+		<l10n:ResourceSetter property="selectRightGroupMessage" key="visa.savedVisPopup.selectRightGroupMessage"/>
+		<l10n:ResourceSetter property="requireNameMessage" key="visa.savedVisPopup.requireNameMessage"/>
+		<l10n:ResourceSetter property="requireDescriptionMessage" key="visa.savedVisPopup.requireDescriptionMessage"/>
+		
+		<l10n:ResourceSetter property="nameItem.label" key="visa.savedVisPopup.name"/>
+		<l10n:ResourceSetter property="descriptionItem.label" key="visa.savedVisPopup.description"/>
+		<l10n:ResourceSetter property="queryItem.label" key="visa.savedVisPopup.query"/>
+		<l10n:ResourceSetter property="sharedWithUsersItem.label" key="visa.savedVisPopup.sharedWithUsers"/>
+		<l10n:ResourceSetter property="sharedWithGroupsItem.label" key="visa.savedVisPopup.sharedWithGroups"/>
+		
+		<l10n:ResourceSetter property="nodesColumn.headerText" key="visa.savedVisPopup.nodesColumn"/>
+		<l10n:ResourceSetter property="selectedGroupsColumn.headerText" key="visa.savedVisPopup.selectedGroupsColumn"/>
+		<l10n:ResourceSetter property="availableGroupsColumn.headerText" key="visa.savedVisPopup.availableGroupsColumn"/>
+		
+		<l10n:ResourceSetter property="editBtn.label" key="visa.savedVisPopup.edit"/>
+		<l10n:ResourceSetter property="addNodeBtn.label" key="visa.savedVisPopup.add"/>
+		<l10n:ResourceSetter property="removeNodeBtn.label" key="visa.savedVisPopup.remove"/>
+		<l10n:ResourceSetter property="saveBtn.label" key="visa.savedVisPopup.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="visa.savedVisPopup.close"/>		
+	</l10n:ResourceInjector>
+
+	<l10n:ResourceInjector bundleName="visa" target="{SavedVisualizationQueryEditPopup}">
+		<l10n:ResourceSetter property="title" key="visa.savedVisQueryEditPopup.title"/>
+
+		<l10n:ResourceSetter property="saveBtn.label" key="visa.savedVisQueryEditPopup.save"/>
+		<l10n:ResourceSetter property="closeBtn.label" key="visa.savedVisQueryEditPopup.close"/>		
+	</l10n:ResourceInjector>
+	
+	<l10n:ResourceInjector bundleName="visa" target="{Charts}">
+		<l10n:ResourceSetter property="noImageMessage" key="visa.charts.noImageMessage"/>
+		<l10n:ResourceSetter property="downloadBtn.label" key="visa.charts.download"/>
+	</l10n:ResourceInjector>
+
+</l10n:LocaleMap>

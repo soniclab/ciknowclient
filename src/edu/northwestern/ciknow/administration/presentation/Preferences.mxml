@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		  xmlns:s="library://ns.adobe.com/flex/spark" 
+		  xmlns:mx="library://ns.adobe.com/flex/mx" 
+		  width="100%" height="100%" 
+		  creationComplete="init()"
+		  xmlns:parsley="http://www.spicefactory.org/parsley" 
+		  styleName="headlessPanel" >
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.l10n.views.assets.LocaleAssets;
+			import edu.northwestern.ciknow.administration.presentation.preferences.NoticeEditPopup;
+			import edu.northwestern.ciknow.common.domain.*;
+			import edu.northwestern.ciknow.common.events.*;
+			import edu.northwestern.ciknow.common.popup.TextDisplayPopup;
+			import edu.northwestern.ciknow.common.util.*;
+			
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			import spark.components.Group;
+			
+			private static var logger:ILogger = LogUtil.getLog(Preferences);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Bindable] [Inject]
+			public var model:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Inject]
+			public var groupUtil:GroupUtil;				
+
+			[Inject]
+			public var context:Context;
+			
+			public var generatedPasswordTitle:String = "Generated Passwords";
+			
+			public function init():void{
+				logger.info("initializing...");
+				if (model.mainPageHeight > 0) {
+					scroller.height = model.mainPageHeight - 72;
+					scroller.width = model.mainPageWidth;	
+				}
+				
+				var survey:SurveyDTO = model.currentSurvey;
+				var attrs:Object = survey.attributes;
+
+				// front page info
+				nameTi.text = survey.name;
+				descriptionTa.text = survey.description;
+				
+				var adminEmail:String = gu.getAttributeValue(attrs, Constants.SURVEY_ADMIN_EMAIL);
+				emailTi.text = (adminEmail==null?"":adminEmail);
+				
+				loginListCbox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_LOGIN_LIST);
+				allowExternalUsersBox.selected = gu.verify(attrs, Constants.SURVEY_ALLOW_SELF_REGISTER);
+				var groupName:String = gu.getAttributeValue(attrs, Constants.SURVEY_SELF_REGISTER_GROUPS);
+				if (groupName != null){
+					selfRegisterGroupBox.selectedItem = groupUtil.getGroupByName(groupName);
+				}
+				
+				// password
+				var defaultPassword:String = gu.getAttributeValue(attrs, Constants.SURVEY_DEFAULT_PASSWORD);
+				if (defaultPassword == "rAnDoM") {
+					randomPasswordBtn.selected = true;
+					passwordTi.enabled = false;
+				} else {
+					defaultPasswordBtn.selected = true;
+					passwordTi.enabled = true;
+					passwordTi.text = defaultPassword;
+				}
+				forceNewUserChangePasswdBox.selected = gu.verify(attrs, Constants.SURVEY_FORCE_NEW_USER_CHANGE_PASSWD);
+
+				// survey
+				showSurveyBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_SURVEY);
+				duringBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_NAVIGATION_DURING);
+				afterBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_NAVIGATION_AFTER);				
+				requireSurveyPasswordBox.selected = gu.verify(attrs, Constants.SURVEY_REQUIRE_PASSWORD);
+				var sp:String = gu.getAttributeValue(attrs, Constants.SURVEY_PASSWORD);
+				if (sp != null) surveyPasswordTi.text = sp;
+				
+				// report
+				showReportBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_REPORT);
+				showRawAttrsInReportBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_RAW_ATTRIBUTES_IN_REPORT);
+				
+				// visa
+				showVisBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_VIS);
+				allowSnapShotBox.selected = gu.verify(attrs, Constants.SURVEY_ALLOW_SNAPSHOT);
+				
+				// recommendation
+				showRecBox.selected = gu.verify(attrs, Constants.SURVEY_SHOW_REC);
+				
+				// others
+				localeBox.selectedItem = gu.getDefaultLocale(attrs);
+				var loginMode:String = gu.getAttributeValue(attrs, Constants.SURVEY_DEFAULT_LOGIN_MODE);
+				if (loginMode == Constants.LOGIN_MODE_QUESTION_ONLY) loginModeCbox.selectedIndex = 1;
+				disableUserCbox.selected = gu.verify(attrs, Constants.SURVEY_DISABLE_USER_ON_FINISH);
+				noticeBox.selected = gu.verify(attrs, Constants.SURVEY_POST_NOTICE);
+				
+				logger.info("initialized.");
+			}
+			
+			private function saveOrUpdate():void{				
+				if (loginModeCbox.selectedItem.key == Constants.LOGIN_MODE_QUESTION_ONLY){
+					if (!showSurveyBox.selected){
+						Alert.show("Conflict: default login mode is 'Survey', while the survey is not enabled.");
+						return;
+					}
+				}
+				
+				var survey:SurveyDTO = model.currentSurvey;
+				
+				// front page info
+				survey.name = StringUtil.trim(nameTi.text);
+				survey.description = StringUtil.trim(descriptionTa.text);
+				var attrs:Object = survey.attributes;
+				attrs[Constants.SURVEY_ADMIN_EMAIL] = StringUtil.trim(emailTi.text);
+				
+				attrs[Constants.SURVEY_SHOW_LOGIN_LIST] = (loginListCbox.selected?"Y":"N");
+				attrs[Constants.SURVEY_ALLOW_SELF_REGISTER] = (allowExternalUsersBox.selected?"Y":"N");
+				
+				var g:GroupDTO = GroupDTO(selfRegisterGroupBox.selectedItem);
+				if (g != null){
+					attrs[Constants.SURVEY_SELF_REGISTER_GROUPS] = g.name;
+				}
+				
+				// password
+				if (randomPasswordBtn.selected) attrs[Constants.SURVEY_DEFAULT_PASSWORD] = "rAnDoM";
+				else attrs[Constants.SURVEY_DEFAULT_PASSWORD] = StringUtil.trim(passwordTi.text);
+				attrs[Constants.SURVEY_FORCE_NEW_USER_CHANGE_PASSWD] = (forceNewUserChangePasswdBox.selected?"Y":"N");
+				attrs[Constants.SURVEY_SHOW_NAVIGATION_DURING] = (duringBox.selected?"Y":"N");
+				attrs[Constants.SURVEY_SHOW_NAVIGATION_AFTER] = (afterBox.selected?"Y":"N");
+				
+				if (requireSurveyPasswordBox.selected){
+					attrs[Constants.SURVEY_REQUIRE_PASSWORD] = "Y";
+					var sp:String = StringUtil.trim(surveyPasswordTi.text);
+					if (sp.length == 0) {
+						Alert.show("survey password is required!");
+						return;
+					} else attrs[Constants.SURVEY_PASSWORD] = sp;
+				} else {
+					delete attrs[Constants.SURVEY_REQUIRE_PASSWORD];
+					delete attrs[Constants.SURVEY_PASSWORD];
+				}
+				
+				// survey
+				attrs[Constants.SURVEY_SHOW_SURVEY] = (showSurveyBox.selected?"Y":"N");
+				
+				// report
+				attrs[Constants.SURVEY_SHOW_REPORT] = (showReportBox.selected?"Y":"N");
+				attrs[Constants.SURVEY_SHOW_RAW_ATTRIBUTES_IN_REPORT] = (showRawAttrsInReportBox.selected?"Y":"N");
+				
+				// visa
+				attrs[Constants.SURVEY_SHOW_VIS] = (showVisBox.selected?"Y":"N");
+				attrs[Constants.SURVEY_ALLOW_SNAPSHOT] = (allowSnapShotBox.selected?"Y":"N");
+				
+				// recommendation
+				attrs[Constants.SURVEY_SHOW_REC] = (showRecBox.selected?"Y":"N");
+								
+				// others
+				var localeItem:Object = localeBox.selectedItem;
+				if (localeItem != null) {
+					attrs[Constants.SURVEY_DEFAULT_LOCALE] = String(localeItem.locale);
+				} else {
+					delete attrs[Constants.SURVEY_DEFAULT_LOCALE];
+				}
+				attrs[Constants.SURVEY_DEFAULT_LOGIN_MODE] = loginModeCbox.selectedItem.key;
+				attrs[Constants.SURVEY_DISABLE_USER_ON_FINISH] = (disableUserCbox.selected?"Y":"N");
+				attrs[Constants.SURVEY_LAST_UPDATE_USERNAME] = model.loginNode.username;
+				survey.timestamp = new Date();
+				attrs[Constants.SURVEY_POST_NOTICE] = noticeBox.selected?"1":"0";
+				
+				// in the back end, save or update are using the same method, 
+				// so it doesn't matter to dispatch update or save event in the client side		
+				var e:SurveyEvent = new SurveyEvent(SurveyEvent.UPDATE_SURVEY);
+				e.data.survey = survey;
+				dispatcher(e);
+			}
+			
+			private function editNotice():void{
+				var p:NoticeEditPopup = new NoticeEditPopup();
+				context.viewManager.addViewRoot(p);
+				gu.showPopup(p, moduleFactory);
+			}
+			
+			private function applyLoginMode():void{
+				var mode:String = String(loginModeCbox.selectedItem.key);
+				var e:NodeEvent = new NodeEvent(NodeEvent.APPLY_LOGIN_MODE);
+				e.data = mode;
+				dispatcher(e);
+			}
+			
+			private function switchPasswordMode(event:MouseEvent):void{
+				var btn:RadioButton = RadioButton(event.target);
+				if (btn == defaultPasswordBtn){
+					passwordTi.enabled = true;
+				} else {
+					passwordTi.enabled = false;
+				}
+			}
+			
+			private function tryGeneratePassword():void{
+				var group:GroupDTO = passwordGroupBox.selectedItem as GroupDTO;
+				if (group == null) {
+					Alert.show("Please select a group of nodes to apply the password scheme.");
+					return;
+				}
+				
+				Alert.show("Are you sure to overrite passwords for users in group: " + group.name, "Warning", Alert.YES|Alert.NO, model.indexPage, generatePassword);
+			}
+			
+			private function generatePassword(event:CloseEvent):void{
+				if (event.detail == Alert.NO) return;
+				var e:NodeEvent = new NodeEvent(NodeEvent.GENERATE_PASSWORD);
+				var group:GroupDTO = passwordGroupBox.selectedItem as GroupDTO;
+				e.data.groupId = group.groupId.toString();
+				e.data.defaultPassword = randomPasswordBtn.selected?"rAnDoM":StringUtil.trim(passwordTi.text);
+				dispatcher(e);
+			}
+						
+			[MessageHandler(selector="generatedPassword")]
+			public function passwordGenerated(e:NodeEvent):void{				
+				var p:TextDisplayPopup = new TextDisplayPopup();
+				p.title = generatedPasswordTitle;
+				p.msg = String(e.data);
+				gu.showPopup(p);
+			}
+			
+			
+			[MessageHandler(selector="RESIZE")]		
+			public function onResize(e:GeneralEvent):void{	
+				var moduleHeight:Number = Number(e.data.height);
+				var moduleWidth:Number = Number(e.data.width);
+				scroller.height = moduleHeight - 72;
+				scroller.width = moduleWidth;
+				logger.info("Set Scroller Size: width=" + scroller.width + ", height=" + scroller.height);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Scroller id="scroller">
+		<s:VGroup width="100%" height="100%">
+			<!-- ****************************** front page ************************ -->
+			<s:Form width="750">		
+				<s:FormHeading id="frontPageHeading" label="Front Page" width="748"/>
+				<s:FormItem id="nameItem" label="Name">
+					<s:TextInput id="nameTi"/>
+				</s:FormItem>
+				
+				<s:FormItem id="descriptionItem" label="Description">
+					<s:TextArea id="descriptionTa" width="300" height="200"/>
+				</s:FormItem>
+				
+				<s:FormItem id="adminEmailItem" label="Admin Email">
+					<s:TextInput id="emailTi"/>
+				</s:FormItem>				
+				
+				<s:FormItem id="showLoginListItem" label="Show Login List" visible="false" includeInLayout="false">
+					<s:CheckBox id="loginListCbox"/>
+				</s:FormItem>		
+			</s:Form>
+			
+			<!-- ****************************** survey ****************************** -->
+			<s:Form width="750">
+				<s:FormHeading id="surveyHeading" label="Survey" width="748"/>
+				<s:FormItem id="showSurveyItem" label="Show Survey" visible="false" includeInLayout="false">
+					<s:CheckBox id="showSurveyBox"/>
+				</s:FormItem>	
+				
+				<s:FormItem id="showNavigationItem" label="Show Survey Navigation Box" visible="false" includeInLayout="false">
+					<s:CheckBox id="duringBox" label="During Survey"/>
+					<s:CheckBox id="afterBox" label="After Complete Survey"/>
+				</s:FormItem>
+				
+				<s:FormItem id="requireSurveyPasswordItem" label="Require Survey Password">
+					<s:HGroup verticalAlign="baseline">
+						<s:CheckBox id="requireSurveyPasswordBox"/>
+						<s:TextInput id="surveyPasswordTi" visible="{requireSurveyPasswordBox.selected}" includeInLayout="{requireSurveyPasswordBox.selected}"/>	
+						<s:Label id="requireSurveyPasswordDescription" text="" fontStyle="italic"/>
+					</s:HGroup>
+				</s:FormItem>
+				
+				<s:FormItem id="allowSelfRegistrationItem" label="Allow Self Registration">
+					<s:CheckBox id="allowExternalUsersBox"/>			
+				</s:FormItem>
+				<s:FormItem id="defaultRegistrationGroupItem" label="Default Registration Group">
+					<s:DropDownList id="selfRegisterGroupBox" dataProvider="{model.groups}" selectedIndex="0" labelField="name" width="400"/>
+				</s:FormItem>				
+			</s:Form>			
+			
+			<!-- ****************************** report ****************************** -->
+			<s:Form width="750">
+				<s:FormHeading id="reportHeading" label="Report" width="748"/>
+				<s:FormItem id="showReportItem" label="Show Report">
+					<s:CheckBox id="showReportBox"/>
+				</s:FormItem>
+				
+				<s:FormItem id="showRawAttributesItem" label="Show Raw Attrs In Report">
+					<s:CheckBox id="showRawAttrsInReportBox"/>
+				</s:FormItem>
+			</s:Form>
+			
+			
+			<!-- ****************************** visa ****************************** -->
+			<s:Form width="750">
+				<s:FormHeading id="visaHeading" label="Visual Analytics" width="748"/>
+				<s:FormItem id="showVisaItem" label="Show VisualAanlytics">
+					<s:CheckBox id="showVisBox"/>
+				</s:FormItem>
+				
+				<s:FormItem id="allowPublishSavedVisItem" label="Allow Publishing Saved Vis">
+					<s:CheckBox id="allowSnapShotBox"/>
+				</s:FormItem>
+			</s:Form>
+			
+			<!-- ****************************** recommendation ****************************** -->
+			<s:Form width="750">
+				<s:FormHeading id="recommendationHeading" label="Recommendation" width="748"/>
+				<s:FormItem id="showRecommendationItem" label="Show Recommendations">
+					<s:CheckBox id="showRecBox"/>
+				</s:FormItem>	
+			</s:Form>
+			
+			<!-- ****************************** password **************************** -->
+			<s:Form width="750">
+				<s:FormHeading id="passwordHeading" label="Password" width="748"/>	
+				<s:FormItem id="defaultPasswordItem" label="Default Password">
+					<s:Label id="defaultPasswordDescription" text="The default password scheme only apply for newly created nodes, e.g. created or imported by admin."/>
+					<s:HGroup>
+						<s:RadioButton id="defaultPasswordBtn" groupName="p" click="switchPasswordMode(event)" selected="true"/>
+						<s:TextInput id="passwordTi" text="" displayAsPassword="true"/>
+					</s:HGroup>
+					<s:RadioButton id="randomPasswordBtn" groupName="p" click="switchPasswordMode(event)" label="Random Generation"/>					
+				</s:FormItem>
+				
+				<s:FormItem id="generatePasswordItem" label="Generate Password">
+					<s:Label id="generatePasswordDescription" text="Select group of nodes you want to generate password based on the selected password scheme."/>
+					<s:HGroup>
+						<s:DropDownList id="passwordGroupBox" dataProvider="{model.groups}" selectedIndex="0" labelField="name" width="400"/>
+						<s:Button id="generatePasswordBtn" label="Apply Now" toolTip="Admin password cannot be overwrite." click="tryGeneratePassword()"/>							
+					</s:HGroup>
+				</s:FormItem>		
+				
+				<s:FormItem id="forceItem" label="Force To Change Initial Password" visible="false" includeInLayout="false">
+					<s:CheckBox id="forceNewUserChangePasswdBox"/>
+				</s:FormItem>
+			</s:Form>
+			
+			<!-- ****************************** other options ****************************** -->
+			<s:Form width="750">
+				<s:FormHeading id="othersHeading" label="Others" width="748"/>
+				<s:FormItem id="localeItem" label="Default Locale">
+					<s:DropDownList id="localeBox" dataProvider="{new ArrayCollection(LocaleAssets._locales)}" labelField="title"/>
+				</s:FormItem>
+				<s:FormItem id="loginModeItem" label="Login Mode" visible="false" includeInLayout="false">
+					<s:HGroup verticalAlign="baseline">
+						<s:DropDownList id="loginModeCbox" dataProvider="{model.loginModes}" selectedIndex="0" labelField="label"/>
+						<s:Button id="applyLoginModeBtn" label="Apply" click="applyLoginMode()"/>
+					</s:HGroup>
+					<s:Label id="loginModeDescription" 
+							 text=""/>
+				</s:FormItem>	
+				
+				<s:FormItem id="disableOnCompleteItem" label="Disable On Complete">
+					<s:CheckBox id="disableUserCbox"  label="Disable responder after he/she completes the survey?"/>
+				</s:FormItem>
+				
+				<s:FormItem id="postNoticeItem" label="Post Notice">
+					<s:HGroup verticalAlign="baseline">
+						<s:CheckBox id="noticeBox"/>
+						<s:Button id="noticeBtn" label="Edit" click="editNotice()"/>
+					</s:HGroup>
+				</s:FormItem>
+			</s:Form>
+		</s:VGroup>
+	</s:Scroller>
+
+	<s:controlBarContent>
+		<s:Button id="saveBtn" label="Save" click="saveOrUpdate()"/>	
+	</s:controlBarContent>
+
+</s:Panel>

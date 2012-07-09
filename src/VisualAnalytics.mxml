@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 xmlns:spicefactory="http://www.spicefactory.org/parsley" 
+		 width="100%" height="100%" resize="onResize()"
+		 xmlns:map="edu.northwestern.ciknow.visa.l10n.map.*" 
+		 xmlns:presentation="edu.northwestern.ciknow.visa.presentation.*">
+	<fx:Style source="visa.css"/>
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.events.NodeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.visa.VisualAnalyticsContext;
+			
+			import mx.core.INavigatorContent;
+			import mx.events.BrowserChangeEvent;
+			import mx.logging.ILogger;
+			import mx.logging.Log;
+			import mx.logging.LogEventLevel;
+			import mx.utils.URLUtil;
+			
+			import org.spicefactory.parsley.core.messaging.ErrorPolicy;
+			
+			private var logger:ILogger;
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject]
+			public var sm:SharedModel;
+			
+			[Init]
+			public function init():void{
+				Log.addTarget(traceTarget);
+				logger = Log.getLogger("VisualAnalyticsModule.mxml");
+				logger.info("init visualanalytics module");
+				
+				sm.bm.addEventListener(BrowserChangeEvent.BROWSER_URL_CHANGE, onBrowserURLChange);
+				setTabByBrowser();
+				
+				if (sm.nodeMap == null){
+					var e:NodeEvent = new NodeEvent(NodeEvent.GET_PLAIN_NODES);
+					dispatcher(e);
+				}
+			}
+			
+			private function onTabChange():void{
+				var fo:Object = {};
+				fo.m = Constants.M_VISA;
+				var tab:INavigatorContent = tabs.selectedChild;
+				if (tab == networkTab){
+					fo.t = Constants.T_NETWORK;
+				} else if (tab == savedVisTab){
+					fo.t = Constants.T_SAVEDVIS;
+				} else if (tab == chartTab){
+					fo.t = Constants.T_CHART;
+				} 
+				sm.bm.setFragment(URLUtil.objectToString(fo, "&"));
+				sm.bm.setTitle("C-IKNOW: VisualAnalytics :: " + tab.label);
+			}
+			
+			private function onBrowserURLChange(e:BrowserChangeEvent):void{
+				setTabByBrowser();
+			}
+			
+			private function setTabByBrowser():void{
+				var f:String = sm.bm.fragment;
+				logger.info("Fragment: " + f);
+				
+				var fo:Object;
+				fo = URLUtil.stringToObject(f, "&");
+				if (fo.m != Constants.M_VISA) return;
+				
+				var t:String = String(fo.t);
+				switch (t){
+					case Constants.T_NETWORK: tabs.selectedChild = networkTab; break;
+					case Constants.T_SAVEDVIS: tabs.selectedChild = savedVisTab; break;
+					case Constants.T_CHART: tabs.selectedChild = chartTab; break;
+					default: {	
+						tabs.selectedChild = networkTab;
+						
+						fo = {};
+						fo.m = Constants.M_VISA;
+						fo.t = Constants.T_NETWORK;
+						f = URLUtil.objectToString(fo, "&");
+						sm.bm.setFragment(f);
+						logger.info("Updated fragment: " + f);
+					}
+				}
+			}
+			
+			private function onResize():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.RESIZE);
+				e.data.width = this.width;
+				e.data.height = this.height;
+				
+				sm.mainPageHeight = this.height;
+				sm.mainPageWidth = this.width;
+				
+				dispatcher(e);
+			}
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<spicefactory:ContextBuilder>
+			<spicefactory:FlexConfig type="{VisualAnalyticsContext}"/>
+			<spicefactory:MessageSettings unhandledErrors="{ErrorPolicy.RETHROW}"/>
+		</spicefactory:ContextBuilder>
+		
+		<spicefactory:Configure/>
+		
+		<s:TraceTarget id="traceTarget" 
+					   level="{ LogEventLevel.DEBUG }"
+					   includeLevel="true" 
+					   includeCategory="true" 
+					   includeDate="true" 
+					   includeTime="true">
+			<s:filters>
+				<fx:Array>
+					<fx:String>VisualAnalyticsModule.mxml</fx:String>
+					<fx:String>edu.northwestern.ciknow.visa.presentation.*</fx:String>
+					<fx:String>edu.northwestern.ciknow.visa.controller.*</fx:String>
+				</fx:Array>
+			</s:filters>
+		</s:TraceTarget>
+		
+		<map:LocalizationMap/>
+	</fx:Declarations>
+	
+	<mx:TabNavigator id="tabs" width="100%" height="100%" change="onTabChange()">
+		<s:NavigatorContent id="networkTab" label="Networks" width="100%" height="100%">
+			<presentation:NetworkPanel/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="savedVisTab" label="Saved Visualizations" width="100%" height="100%">
+			<presentation:SavedVisualizationPanel/>
+		</s:NavigatorContent>
+		<s:NavigatorContent id="chartTab" label="Charts" width="100%" height="100%">
+			<presentation:Charts/>
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+</s:Group>

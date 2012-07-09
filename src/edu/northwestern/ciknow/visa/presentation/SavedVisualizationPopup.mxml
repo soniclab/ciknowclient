@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   width="100%" height="100%" 
+			   close="close()" creationComplete="init()"
+			   xmlns:components="org.flashcommander.components.*" 
+			   xmlns:parsley="http://www.spicefactory.org/parsley" 
+			   title="Edit/Share Visualization">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<parsley:Configure/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.GroupDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.domain.VisualizationDTO;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.GroupUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			import edu.northwestern.ciknow.common.util.NodeUtil;
+			import edu.northwestern.ciknow.visa.presentation.savedvis.SavedVisualizationQueryEditPopup;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.logging.ILogger;
+			import mx.managers.PopUpManager;
+			import mx.utils.StringUtil;
+			
+			import org.spicefactory.parsley.core.context.Context;
+			
+			private static const logger:ILogger = LogUtil.getLog(SavedVisualizationPopup);
+			
+			[Bindable] private var visibleGroups:ArrayCollection = new ArrayCollection();
+			[Bindable] private var visibleNodes:ArrayCollection = new ArrayCollection();
+			public var vis:VisualizationDTO = null;
+			public var temp:Object = new Object();
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable]
+			public var sm:SharedModel;
+
+			[Inject]
+			public var nu:NodeUtil;
+			
+			[Inject]
+			public var gu:GroupUtil;		
+			
+			[Inject]
+			public var generalUtil:GeneralUtil;
+			
+			[Inject]
+			public var context:Context;
+			
+			public var invalidNodeLabelPrefix:String = "Invalid Node Label:";
+			public var selectNodeMessage:String = "Please select a node.";
+			public var selectLeftGroupMessage:String = "Please select group from left hand side.";
+			public var selectRightGroupMessage:String = "Please select group from right hand side.";
+			public var requireNameMessage:String = "Name cannot be empty.";
+			public var requireDescriptionMessage:String = "Description cannot be empty.";
+			
+			public function init():void{							
+				if (vis == null){
+					Alert.show("Missing visualization data.");
+					return;
+				}
+				
+				nameTi.text = vis.name;
+				labelTi.text = vis.label;
+				temp.query = vis.data;
+				
+				if (vis.type != "query"){
+					editBtn.enabled = false;
+				}
+				
+				for each (var groupId:Number in vis.groups){
+					var group:GroupDTO = gu.getGroupById(groupId);
+					if (group == null) {
+						Alert.show("Missing group: id=" + groupId);
+						continue;
+					}
+					visibleGroups.addItem(group);
+				}
+				
+				for each (var nodeId:Number in vis.nodes){
+					var node:Object = nu.getNodeById(nodeId);
+					if (node == null) {
+						Alert.show("Missing node: id=" + nodeId);
+						continue;
+					}
+					visibleNodes.addItem(node);
+				}
+				
+				PopUpManager.centerPopUp(this);
+			}
+			
+			private function editQuery():void{
+				if (vis.type != "query") {
+					Alert.show("N/A");
+					return;
+				}
+				
+				var p:SavedVisualizationQueryEditPopup = new SavedVisualizationQueryEditPopup();
+				p.data = temp;
+				p.width = sm.indexPage.width;
+				p.height = sm.indexPage.height;
+				context.viewManager.addViewRoot(p);
+				generalUtil.showPopup(p, moduleFactory); 
+			}
+			
+			private function addNode():void{
+				var nodeLabel:String = StringUtil.trim(labelFinder.text);
+				var node:Object = nu.getNodeByLabel(nodeLabel);
+				if (node == null){
+					Alert.show(invalidNodeLabelPrefix + " " + nodeLabel);
+					return;
+				}
+				if (!visibleNodes.contains(node)) visibleNodes.addItem(node);
+			}
+			
+			private function removeNode():void{
+				var nodes:Vector.<Object> = visibleNodeDg.selectedItems;
+				if (nodes == null) {
+					Alert.show(selectNodeMessage);
+					return;
+				}
+				for each (var node:Object in nodes){
+					visibleNodes.removeItemAt(visibleNodes.getItemIndex(node));
+				}
+			}	
+			
+			private function addGroup():void{
+				if (allGroupDg.selectedItems == null) {
+					Alert.show(selectRightGroupMessage);
+					return;
+				}
+				for each (var group:GroupDTO in allGroupDg.selectedItems){
+					if (visibleGroups.contains(group)) continue;
+					else visibleGroups.addItem(group);
+				}
+			}
+			
+			private function removeGroup():void{
+				if (visibleGroupDg.selectedItems == null) {
+					Alert.show(selectLeftGroupMessage);
+					return;
+				}
+				for each (var group:GroupDTO in visibleGroupDg.selectedItems){
+					visibleGroups.removeItemAt(visibleGroups.getItemIndex(group));
+				}
+			}
+		
+			
+			private function saveOrUpdate():void{							
+				var name:String = StringUtil.trim(nameTi.text);				
+				if (name.length == 0) {
+					Alert.show(requireNameMessage);
+					return;
+				}						
+				vis.name = name;
+				
+				var description:String = StringUtil.trim(labelTi.text);
+				if (description.length == 0) {
+					Alert.show(requireDescriptionMessage);
+					return;
+				}				
+				vis.label = description;
+				
+				vis.data = temp.query;
+				
+				var nodes:ArrayCollection = new ArrayCollection();
+				for each (var node:Object in visibleNodes){
+					nodes.addItem(Number(node.nodeId));
+				}
+				vis.nodes = nodes;	
+				
+				var groups:ArrayCollection = new ArrayCollection();
+				for each (var group:GroupDTO in visibleGroups){
+					groups.addItem(group.groupId);
+				}
+				vis.groups = groups;
+				
+				vis.valid = true;
+				
+				var e:GeneralEvent;
+				if (vis.visId == 0) {
+					e = new GeneralEvent(GeneralEvent.CREATE_VIS);
+				} else {
+					e = new GeneralEvent(GeneralEvent.UPDATE_VIS);
+				}
+				e.data = vis;
+				dispatcher(e);
+			}						
+			
+			[MessageHandler(selector="createdVis")]
+			[MessageHandler(selector="updatedVis")]
+			public function visHandler(e:GeneralEvent):void{				
+				close();
+			}
+			
+			private function close():void{
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Scroller left="0" right="0" top="0" bottom="0">
+		<s:VGroup width="{this.width-15}" height="{this.height-65}">
+			<s:Label id="msg" color="red" visible="false" includeInLayout="false"/>
+			<s:Form width="100%" height="100%">
+				<s:FormItem id="nameItem" label="Name">
+					<s:TextInput id="nameTi" width="500"/>
+				</s:FormItem>
+				<s:FormItem id="descriptionItem" label="Description">
+					<s:TextInput id="labelTi" width="500"/>
+				</s:FormItem>	
+				<s:FormItem id="queryItem" label="Query">
+					<s:Button id="editBtn" label="Edit" click="editQuery()"/>
+				</s:FormItem>				
+				<s:FormItem id="sharedWithUsersItem" label="Share With Users">
+					<s:HGroup>
+						<components:AutoComplete id="labelFinder" prefixOnly="false" requireSelection="true" 
+												 dataProvider="{sm.allNodeLabels}"
+												 width="500"/>
+						<s:Button id="addNodeBtn" label="Add" click="addNode()"/>
+					</s:HGroup>
+					<s:DataGrid id="visibleNodeDg" 
+								width="100%" height="100%" 
+								dataProvider="{visibleNodes}" 
+								selectionMode="multipleRows" 
+								requestedRowCount="6">
+						<s:columns>
+							<s:ArrayList>
+								<s:GridColumn id="nodesColumn" headerText="Nodes" dataField="label"/>
+							</s:ArrayList>
+						</s:columns>
+					</s:DataGrid>
+					<s:Button id="removeNodeBtn" label="Remove Selected Node(s)" click="removeNode()"/>		
+				</s:FormItem>
+				<s:FormItem id="sharedWithGroupsItem" label="Share With Groups" width="100%" height="100%">
+					<s:HGroup width="100%" height="100%">
+						<s:DataGrid id="visibleGroupDg" 
+									width="100%" height="100%" 
+									dataProvider="{visibleGroups}" 
+									selectionMode="multipleRows"
+									requestedRowCount="6"
+									doubleClickEnabled="true" 
+									doubleClick="removeGroup()">
+							<s:columns>
+								<s:ArrayList>
+									<s:GridColumn id="selectedGroupsColumn" headerText="Groups" dataField="name"/>
+								</s:ArrayList>
+							</s:columns>
+						</s:DataGrid>
+						<s:VGroup verticalAlign="middle" height="100%">
+							<s:Button label="&lt;" click="addGroup()"/>
+							<s:Button label="&gt;" click="removeGroup()"/>
+						</s:VGroup>
+						<s:DataGrid id="allGroupDg" 
+									width="100%" height="100%" 
+									dataProvider="{sm.groups}" 
+									selectionMode="multipleRows"
+									requestedRowCount="6" 
+									doubleClickEnabled="true" 
+									doubleClick="addGroup()">
+							<s:columns>
+								<s:ArrayList>
+									<s:GridColumn id="availableGroupsColumn" headerText="All Groups" dataField="name"/>	
+								</s:ArrayList>					
+							</s:columns>				
+						</s:DataGrid>	
+					</s:HGroup>		
+				</s:FormItem>		
+			</s:Form>
+		</s:VGroup>
+	</s:Scroller>
+	
+	<s:controlBarContent>
+		<s:Button id="saveBtn" label="Save" click="saveOrUpdate()"/>		
+		<s:Button id="closeBtn" label="Close" click="close()"/>		
+	</s:controlBarContent>
+</s:TitleWindow>

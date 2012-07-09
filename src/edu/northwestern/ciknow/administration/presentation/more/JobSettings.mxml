@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Panel xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%" 
+		 xmlns:parsley="http://www.spicefactory.org/parsley">
+	<fx:Declarations>
+		<parsley:Configure/>
+		<s:DateTimeFormatter id="df" dateTimePattern="HH:mm:ss MM/dd/yyyy"/>
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.JobDTO;
+			import edu.northwestern.ciknow.common.domain.SharedModel;
+			import edu.northwestern.ciknow.common.events.GeneralEvent;
+			import edu.northwestern.ciknow.common.util.GeneralUtil;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.logging.ILogger;
+			import mx.utils.StringUtil;
+			
+			private static const logger:ILogger = LogUtil.getLog(JobSettings);
+			
+			[MessageDispatcher]
+			public var dispatcher:Function;
+			
+			[Inject][Bindable] 
+			public var sm:SharedModel;
+			
+			[Inject]
+			public var gu:GeneralUtil;
+			
+			[Bindable] private var jobs:ArrayCollection = null;
+			[Bindable] private var selectedJob:JobDTO = null;
+			
+			public var selectJobMessage:String = "Please select a job first.";
+			public var deleteJobMessage:String = "Are you sure to delete this scheduled job?";
+			public var missingDataMessage:String = "Please complete the missing field(s)";
+			
+			[Init]
+			public function init():void{
+				refresh();
+			}
+			
+			private function refresh():void{
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.GET_SCHEDULED_JOBS);
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="gotScheduledJobs")]
+			public function jobsHandler(event:GeneralEvent):void{
+				jobs = ArrayCollection(event.data);
+				selectedJob = null;
+				jobForm.visible = false;
+			}
+			
+
+			private function select():void{
+				selectedJob = jobGrid.selectedItem as JobDTO;
+				if (selectedJob == null){
+					jobForm.visible = false;
+				} else {
+					jobForm.visible = true;
+					schedule.selectedItem = gu.getSchduleByName(selectedJob.scheduledRuntime);
+				}				
+			}
+			
+			private function save():void{
+				if (selectedJob == null) {
+					Alert.show(selectJobMessage);
+					return;
+				}
+				
+				if (descriptionTi.text.length == 0 || schedule.selectedItem == null) {
+					Alert.show(missingDataMessage);
+					return;
+				}
+				
+				selectedJob.scheduledRuntime = schedule.selectedItem.name;
+				selectedJob.description = StringUtil.trim(descriptionTi.text);
+				selectedJob.enabled = enabledCbox.selected;
+				
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.UPDATE_SCHEDULED_JOB);
+				e.data = selectedJob;
+				dispatcher(e);
+			}	
+			
+			private function tryRemove():void{
+				if (selectedJob == null) {
+					Alert.show(selectJobMessage);
+					return;
+				}
+				Alert.show(deleteJobMessage, "", Alert.YES|Alert.NO, null, remove);
+			}
+			
+			private function remove(evt:CloseEvent):void{
+				if (evt.detail == Alert.NO) return;
+				
+				var e:GeneralEvent = new GeneralEvent(GeneralEvent.DELETE_SCHEDULED_JOB);
+				e.data = selectedJob.name;
+				dispatcher(e);
+			}
+			
+			[MessageHandler(selector="deletedScheduledJob")]
+			public function deleteHandler(event:GeneralEvent):void{
+				var name:String = String(event.data);
+				
+				for (var i:int=0; i<jobs.length; i++){
+					var job:JobDTO = jobs.getItemAt(i) as JobDTO;
+					if (job.name == name) {
+						jobs.removeItemAt(i);
+						selectedJob = null;
+						jobForm.visible = false;
+						return;
+					}
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:HGroup width="100%" height="100%">
+		<s:DataGrid id="jobGrid" dataProvider="{jobs}" width="420" height="100%" selectionChange="select()">
+			<s:columns>
+				<s:ArrayList>
+					<s:GridColumn id="nameColumn" width="120" headerText="Name" dataField="name" showDataTips="true" dataTipField="name"/>
+					<s:GridColumn id="typeColumn" width="100" headerText="Type" dataField="type" showDataTips="true" dataTipField="type"/>
+					<s:GridColumn id="creatorColumn" width="60" headerText="Creator" dataField="creator" showDataTips="true" dataTipField="creator"/>			
+					<s:GridColumn id="scheduleColumn" width="75" headerText="Schedule" dataField="scheduledRuntime" showDataTips="true" dataTipField="scheduledRuntime"/>
+					<s:GridColumn id="enabledColumn" width="60" headerText="Enabled" dataField="enabled" showDataTips="true" dataTipField="enabled"/>
+				</s:ArrayList>
+			</s:columns>
+		</s:DataGrid>			
+		
+		<s:Form id="jobForm" width="100%" height="100%" visible="false">
+			<s:FormItem id="nameItem" label="Name">
+				<s:Label text="{selectedJob.name}"/>
+			</s:FormItem>
+			<s:FormItem id="typeItem" label="Type">
+				<s:Label text="{selectedJob.type}"/>
+			</s:FormItem>
+			<s:FormItem id="creatorItem" label="Creator">
+				<s:Label text="{selectedJob.creator}"/>
+			</s:FormItem>
+			<s:FormItem id="descriptionItem" label="Description">
+				<s:TextInput id="descriptionTi" text="{selectedJob.description}"/>
+			</s:FormItem>
+			<s:FormItem id="scheduleItem" label="Schedule">
+				<s:DropDownList id="schedule" dataProvider="{sm.JOB_SCHEDULES}"/>
+			</s:FormItem>
+			<s:FormItem id="creationTimeItem" label="CreationTime">
+				<s:Label text="{df.format(selectedJob.createTS)}"/>
+			</s:FormItem>
+			<s:FormItem id="lastRunTimeItem" label="LastRunTime">
+				<s:Label text="{df.format(selectedJob.lastRunTS)}"/>
+			</s:FormItem>
+			<s:FormItem id="enabledItem" label="Enabled">
+				<s:CheckBox id="enabledCbox" selected="{selectedJob.enabled}"/>
+			</s:FormItem>
+		</s:Form>
+	</s:HGroup>
+	
+	<s:controlBarContent>
+		<s:Button id="refreshBtn" click="refresh()" label="Refresh"/>
+		<s:Button id="saveBtn" click="save()" label="Save"/>
+		<s:Button id="deleteBtn" click="tryRemove()" label="Delete"/>
+	</s:controlBarContent>
+</s:Panel>

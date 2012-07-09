@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%" 
+					   title="Derive Edges By Attribute">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			
+			[Bindable] private var choiceQuestions:ArrayCollection = new ArrayCollection();
+			
+			public var selectItemMessage:String = "node type(s) and question are required.";
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveEdgesByAttribute);
+				super.init();
+				this.derivationType = Constants.DERIVE_EDGE_BY_ATTRIBUTE;
+				
+				choiceQuestions.removeAll();
+				for each (var q:QuestionDTO in sm.questions){
+					if (q.type == Constants.QUESTION_TYPE_CHOICE){
+						choiceQuestions.addItem(q);
+					}
+				}
+				
+				if (choiceQuestions.length > 0){
+					choiceQuestionList.selectedIndex = 0;
+					selectQuestion();
+				}
+			}
+
+			
+			private function selectQuestion():void{
+				var question:QuestionDTO = QuestionDTO(choiceQuestionList.selectedItem);
+				attValues.dataProvider = question.fields;
+				attValues.selectedIndex = -1;
+			}							
+			
+			
+			public override function derive():void{
+				var q:QuestionDTO = QuestionDTO(choiceQuestionList.selectedItem);
+				var ntds:Vector.<Object> = nodeTypeBox.selectedItems;
+				if (q == null || ntds == null || ntds.length == 0) {
+					Alert.show(selectItemMessage);
+					return;
+				}
+				
+				var event:EdgeEvent = new EdgeEvent(EdgeEvent.DERIVE_EDGES_BY_ATTRIBUTE);
+				event.data = new Object();
+				event.data.shortName = q.shortName;
+				event.data.fieldName = (attValues.selectedIndex >= 0) ? attValues.selectedItem.name:"";				
+				var nodeTypes:ArrayCollection = new ArrayCollection();
+				for each (var ntd:Object in ntds){
+					nodeTypes.addItem(ntd.type);
+				}
+				event.data.nodeTypes = nodeTypes;
+				event.data.job = job;
+				
+				dispatcher(event);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Label text="{instruction}"/>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="nodeTypesItem" label="Node Types" width="100%">
+			<s:DataGrid id="nodeTypeBox" 
+						dataProvider="{sm.nodeTypeDescriptions}" 
+						selectionMode="multipleRows" 
+						width="500"> 
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn headerText="" dataField="label"/>
+					</s:ArrayList>
+				</s:columns>
+			</s:DataGrid>
+		</s:FormItem>
+		<s:FormItem id="questionItem" label="Question">
+			<s:DropDownList id="choiceQuestionList" 
+						 dataProvider="{choiceQuestions}" 
+						 labelField="label" 
+						 width="500"
+						 change="selectQuestion()"/>
+		</s:FormItem>	
+		<s:FormItem id="choicesItem" label="Choices">
+			<s:HGroup verticalAlign="baseline">
+				<s:DropDownList id="attValues" labelField="label" width="500"/>
+				<s:Label id="choicesNote" text="(optional)"/>
+			</s:HGroup>
+		</s:FormItem>					
+	</s:Form>	
+</derivation:DeriveBase>

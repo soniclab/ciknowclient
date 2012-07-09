@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fx:Object xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		   xmlns:s="library://ns.adobe.com/flex/spark" 
+		   xmlns:mx="library://ns.adobe.com/flex/mx" 
+		   xmlns:parsley="http://www.spicefactory.org/parsley" 
+		   xmlns:data="com.adobe.cairngorm.integration.data.*" 
+		   xmlns:savedvis="edu.northwestern.ciknow.visa.presentation.savedvis.*">
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.visa.controller.*;
+			import edu.northwestern.ciknow.common.events.*;
+			import edu.northwestern.ciknow.common.domain.*;
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- Presentation -->
+		<savedvis:SavedVisualizationPM/>
+		
+		<!-- Application -->
+		<parsley:DynamicCommand type="{GetEdgeTypesAmongNodeTypesCommand}" selector="{EdgeEvent.GET_EDGE_TYPES_AMONG_NODE_TYPES}"/>
+		<parsley:DynamicCommand type="{LargeNetworkLimitsGetCommand}" selector="{GeneralEvent.GET_LARGE_NETWORK_LIMITS}"/>
+		<parsley:DynamicCommand type="{LargeNetworkLimitsSetCommand}" selector="{GeneralEvent.SET_LARGE_NETWORK_LIMITS}"/>
+		<parsley:DynamicCommand type="{NodeGetDisplayAttributesCommand}" selector="{GeneralEvent.GET_DISPLAY_ATTRIBUTES}"/>
+		<parsley:DynamicCommand type="{GetNetworkMetricsCommand}" selector="{NetworkAnalyticsEvent.GET_NETWORK_METRICS}"/>
+		
+		<parsley:DynamicCommand type="{VisCreateCommand}" selector="{GeneralEvent.CREATE_VIS}"/>
+		<parsley:DynamicCommand type="{VisUpdateCommand}" selector="{GeneralEvent.UPDATE_VIS}"/>
+		<parsley:DynamicCommand type="{VisDeleteCommand}" selector="{GeneralEvent.DELETE_VIS}"/>
+		<parsley:DynamicCommand type="{VisValidateCommand}" selector="{GeneralEvent.VALIDATE_VIS}"/>
+		<parsley:DynamicCommand type="{VisGetCreatedCommand}" selector="{GeneralEvent.GET_CREATED_VIS}"/>
+		<parsley:DynamicCommand type="{VisGetVisibleCommand}" selector="{GeneralEvent.GET_VISIBLE_VIS}"/>
+		
+		<parsley:DynamicCommand type="{ChartGetDataCommand}" selector="{QuestionEvent.GET_CHART_DATA}"/>
+		
+		
+		<!-- Domain -->
+		
+		
+		<!-- Infrastructure -->
+		<data:DataCache id="savedVisualizationCache" type="edu.northwestern.ciknow.common.domain.VisualizationDTO"/>
+	</fx:Declarations>
+</fx:Object>

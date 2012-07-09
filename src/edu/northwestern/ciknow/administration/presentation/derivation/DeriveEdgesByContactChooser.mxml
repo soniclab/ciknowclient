@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<derivation:DeriveBase xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   xmlns:derivation="edu.northwestern.ciknow.administration.presentation.derivation.*" 
+					   width="100%" height="100%" 
+					   title="Derive Edges By Contact Chooser">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import edu.northwestern.ciknow.common.domain.QuestionDTO;
+			import edu.northwestern.ciknow.common.events.EdgeEvent;
+			import edu.northwestern.ciknow.common.util.Constants;
+			import edu.northwestern.ciknow.common.util.LogUtil;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			
+			[Bindable] private var ccQuestions:ArrayCollection = new ArrayCollection();
+			
+			public var selectItemMessage:String = "Please select contact chooser question.";
+			
+			public override function init():void{
+				logger = LogUtil.getLog(DeriveEdgesByContactChooser);
+				super.init();
+				this.derivationType = Constants.DERIVE_EDGE_BY_CC;
+				
+				ccQuestions.removeAll();
+				for each (var q:QuestionDTO in sm.questions){
+					if (q.type == Constants.QUESTION_TYPE_CONTACT_CHOOSER){
+						ccQuestions.addItem(q);
+					}
+				}	
+			}
+			
+			public override function derive():void{
+				var q:QuestionDTO = ccBox.selectedItem as QuestionDTO;
+				if (q == null) {
+					Alert.show(selectItemMessage);
+					return;
+				}
+				
+				var e:EdgeEvent = new EdgeEvent(EdgeEvent.DERIVE_EDGES_BY_CC);
+				e.data = new Object();
+				e.data.shortName = q.shortName;
+				e.data.job = job;
+				dispatcher(e);
+			}
+		]]>
+	</fx:Script>
+	
+	<s:Label text="{instruction}"/>
+	<s:Form width="100%" height="100%">
+		<s:FormItem id="selectCCItem" label="Select Contact Chooser" width="100%" height="100%">
+			<s:DropDownList id="ccBox" dataProvider="{ccQuestions}" labelField="label" width="500"/>
+		</s:FormItem>				
+	</s:Form>
+	
+</derivation:DeriveBase>
